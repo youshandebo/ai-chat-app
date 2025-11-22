@@ -1,0 +1,137 @@
+import https from "https";
+import http from "http";
+
+export async function callModelAPI(
+  model: any,
+  messages: any,
+  apiKey: string | undefined,
+  onChunk?: (chunk: { content: string; done: boolean }) => void
+) {
+  if (model.id === "deepseek-openai-mock") {
+    const lastUser = Array.isArray(messages) ? [...messages].reverse().find((m: any) => m.role === "user") : null;
+    const baseReply = lastUser?.content ? `好的，已收到：${lastUser.content}` : "你好，我是模拟回复";
+    if (onChunk) {
+      const parts = baseReply.match(/.{1,8}/g) || [baseReply];
+      for (const p of parts) {
+        await new Promise((r) => setTimeout(r, 40));
+        onChunk({ content: p, done: false });
+      }
+      return { content: baseReply } as any;
+    } else {
+      return { content: baseReply } as any;
+    }
+  }
+  const body =
+    model.messageFormat === "gemini"
+      ? JSON.stringify(messages)
+      : JSON.stringify({
+          model: model.id,
+          messages,
+          stream: true,
+          temperature: model.defaultParams?.temperature,
+          max_tokens: model.defaultParams?.maxTokens,
+        });
+
+  const base = new URL(model.apiBase);
+  const candidates: string[] = [];
+  if (model.apiPaths?.chat) candidates.push(model.apiPaths.chat);
+  if ((model.apiPaths as any)?.chat_alt) candidates.push((model.apiPaths as any).chat_alt);
+  if (model.messageFormat === "gemini") {
+    candidates.push("/models/gemini-2.5-flash:streamGenerateContent");
+    candidates.push("/models/gemini-2.0-flash:streamGenerateContent");
+  } else {
+    candidates.push("/v1/chat/completions");
+  }
+
+  const headers: Record<string, string> = { "Content-Type": "application/json", "Accept": "application/json" };
+  if (apiKey) {
+    if (model.messageFormat === "gemini") headers["x-goog-api-key"] = apiKey;
+    else headers["Authorization"] = `Bearer ${apiKey}`;
+  }
+
+  const clientFactory = (p: string) => {
+    const opts = {
+      protocol: base.protocol,
+      hostname: base.hostname,
+      port: base.port || undefined,
+      path: (() => {
+        const basePath = (base.pathname || "/").replace(/\/$/, "");
+        if (p.startsWith(basePath)) return p;
+        return basePath + (p.startsWith("/") ? p : `/${p}`);
+      })(),
+      method: "POST",
+      headers,
+    } as any;
+    return { opts, client: (opts.protocol === "http:" ? http : https) as typeof https };
+  };
+
+  const attempt = (p: string) =>
+    new Promise<any>((resolve, reject) => {
+      const { opts, client } = clientFactory(p);
+      const req = client.request(opts, (res) => {
+        const contentType = String(res.headers["content-type"] || "");
+        let buffer = "";
+        res.on("data", (chunk) => {
+          const str = chunk.toString();
+          buffer += str;
+          if (contentType.includes("text/event-stream")) {
+            const lines = buffer.split("\n");
+            buffer = lines.pop() || "";
+            for (const line of lines) {
+              if (line.startsWith("data: ")) {
+                const data = line.slice(6);
+                if (data === "[DONE]") {
+                  onChunk?.({ content: "", done: true });
+                  resolve(null);
+                } else {
+                  try {
+                    const parsed = JSON.parse(data);
+                    const content =
+                      parsed.choices?.[0]?.delta?.content ||
+                      parsed.content ||
+                      parsed.candidates?.[0]?.content?.parts?.[0]?.text ||
+                      "";
+                    if (content) onChunk?.({ content, done: false });
+                  } catch {}
+                }
+              }
+            }
+          }
+        });
+        res.on("end", () => {
+          if (!contentType.includes("text/event-stream")) {
+            try {
+              const parsed = JSON.parse(buffer);
+              const content =
+                parsed.choices?.[0]?.message?.content ||
+                parsed.content ||
+                parsed.candidates?.[0]?.content?.parts?.[0]?.text ||
+                "";
+              if (content && onChunk) onChunk({ content, done: false });
+              resolve(null);
+            } catch {
+              if (buffer && onChunk) onChunk({ content: buffer, done: false });
+              resolve(null);
+            }
+          } else {
+            resolve(null);
+          }
+        });
+        res.on("error", reject);
+        if (res.statusCode && res.statusCode >= 400) {
+          reject(new Error(`HTTP ${res.statusCode}`));
+        }
+      });
+      req.on("error", reject);
+      req.write(body);
+      req.end();
+    });
+
+  for (const p of candidates) {
+    try {
+      const result = await attempt(p);
+      return result;
+    } catch {}
+  }
+  throw new Error("All endpoints failed");
+}

@@ -1,0 +1,83 @@
+import { useMemo, useRef, useEffect } from "react";
+import { motion } from "framer-motion";
+import { useChatStore } from "../store/useChatStore";
+import CodeBlock from "./CodeBlock";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+
+export default function MessageList() {
+  const { chats, currentChatId } = useChatStore();
+  const messages = useMemo(() => {
+    const c = chats.find((x) => x.id === currentChatId);
+    return c?.messages || [];
+  }, [chats, currentChatId]);
+
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  return (
+    <div className="p-6 bg-white dark:bg-dark-card">
+      {messages.map((m, i) => {
+        const c = String(m.content || "");
+        if (m.role === "assistant" && c.trim() === "") return null;
+        return (
+          <motion.div
+            key={m.id}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: i * 0.02 }}
+            className={`mb-3 flex ${m.role === "user" ? "justify-end" : "justify-start"}`}
+          >
+            <div
+              className={`max-w-[70%] rounded-2xl px-4 py-2 shadow ${
+                m.role === "user"
+                  ? "bg-primary dark:bg-primary/90 text-white"
+                  : "bg-gray-100 dark:bg-dark-card dark:text-dark-text border border-gray-200 dark:border-dark-border"
+              }`}
+            >
+              {(() => {
+                if (m.role === "assistant" && (c.startsWith("<!DOCTYPE") || c.includes("<html"))) {
+                  return "接口返回了HTML/非JSON，请检查请求地址";
+                }
+                const re = /```([a-zA-Z0-9+#\-]*)?\n([\s\S]*?)```/g;
+                const parts: { type: "text" | "code"; value: string; lang?: string }[] = [];
+                let lastIndex = 0;
+                let match: RegExpExecArray | null;
+                while ((match = re.exec(c)) !== null) {
+                  const [full, lang, code] = match;
+                  const start = match.index;
+                  if (start > lastIndex) {
+                    parts.push({ type: "text", value: c.slice(lastIndex, start) });
+                  }
+                  parts.push({ type: "code", value: code, lang: (lang || "").toLowerCase() });
+                  lastIndex = start + full.length;
+                }
+                if (lastIndex < c.length) {
+                  parts.push({ type: "text", value: c.slice(lastIndex) });
+                }
+                if (parts.length === 0) {
+                  return <ReactMarkdown remarkPlugins={[remarkGfm]}>{c}</ReactMarkdown>;
+                }
+                return (
+                  <div className="space-y-3">
+                    {parts.map((p, idx) =>
+                      p.type === "code" ? (
+                        <CodeBlock key={idx} code={p.value} language={p.lang} />
+                      ) : (
+                        <ReactMarkdown key={idx} remarkPlugins={[remarkGfm]}>{p.value}</ReactMarkdown>
+                      )
+                    )}
+                  </div>
+                );
+              })()}
+            </div>
+          </motion.div>
+        );
+      })}
+      <div ref={messagesEndRef} />
+    </div>
+  );
+}

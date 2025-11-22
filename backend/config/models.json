@@ -1,0 +1,36 @@
+{
+  "models": [
+    {
+      "id": "gemini-2.5-flash",
+      "name": "Gemini 2.5 Flash",
+      "apiBase": "https://tb.api.mkeai.com/v1",
+      "apiKeyEnv": "GEMINI_API_KEY",
+      "supportsStreaming": true,
+      "contextWindow": 128000,
+      "messageFormat": "openai",
+      "defaultParams": {
+        "temperature": 0.7,
+        "maxTokens": 4096
+      },
+      "apiPaths": {
+        "chat": "/v1/chat/completions"
+      }
+    },
+    {
+      "id": "mkeai-openai",
+      "name": "MKEAI Proxy",
+      "apiBase": "https://tb.api.mkeai.com",
+      "apiKeyEnv": "MKEAI_API_KEY",
+      "supportsStreaming": true,
+      "contextWindow": 128000,
+      "messageFormat": "openai",
+      "defaultParams": {
+        "temperature": 0.7,
+        "maxTokens": 4096
+      },
+      "apiPaths": {
+        "chat": "/v1/chat/completions"
+      }
+    }
+  ]
+}

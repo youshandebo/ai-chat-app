@@ -1,0 +1,37 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-gray-50 text-gray-900 dark:bg-dark-bg dark:text-dark-text;
+  }
+}
+
+.code-block-wrapper {
+  margin: 16px 0;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--dark-border);
+  background: var(--dark-card);
+}
+.dark .code-block-wrapper { background: #2d2d2d; }
+.light .code-block-wrapper { background: #f6f8fa; }
+
+.code-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 16px;
+  background: var(--dark-border);
+  font-size: 14px;
+}
+.language-tag { color: #8b949e; text-transform: uppercase; font-weight: 600; }
+.copy-button { padding: 4px 8px; border: 1px solid #3a3a3a; border-radius: 4px; background: transparent; color: #8b949e; cursor: pointer; transition: all .2s; }
+.copy-button:hover { background: #3a3a3a; color: #c9d1d9; }
+.copy-button.copied { background: #238636; color: #fff; border-color: #238636; }
+
+pre { margin: 0 !important; padding: 16px !important; overflow-x: auto; line-height: 1.5; font-size: 14px; font-family: 'Fira Code','Monaco','Consolas',monospace; }
+pre::-webkit-scrollbar { height: 8px; }
+pre::-webkit-scrollbar-track { background: var(--dark-border); }
+pre::-webkit-scrollbar-thumb { background: #4a4a4a; border-radius: 4px; }
