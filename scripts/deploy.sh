@@ -289,7 +289,7 @@ EOF
     
     cd "$FRONT_DIR"
     log_info "Configure frontend Express server..."
-    cat > server.js << 'EOFJS'
+    cat > server.cjs << 'EOFJS'
 const express = require('express');
 const path = require('path');
 const fs = require('fs');
@@ -304,16 +304,17 @@ if (!fs.existsSync(distPath)) {
 
 app.use(express.static(distPath));
 
-app.get('*', (req, res) => {
+app.get('/health', (req, res) => {
+    res.json({ status: 'ok' });
+});
+
+// SPA 回退路由：所有其他请求都返回 index.html
+app.use((req, res) => {
     res.sendFile(path.join(distPath, 'index.html'), err => {
         if (err) {
             res.status(500).send('Server error');
         }
     });
-});
-
-app.get('/health', (req, res) => {
-    res.json({ status: 'ok' });
 });
 
 const PORT = process.env.PORT || 3000;
@@ -350,11 +351,10 @@ start_services() {
     log_info "Starting backend service..."
     cd "$BACK_DIR"
     
-    if pm2 start "npm start" \
+    if pm2 start dist/server.js \
         --name "$BACK_NAME" \
-        --env PORT=$BACK_PORT,CORS_ORIGIN='*',NODE_ENV=production \
+        --env PORT=$BACK_PORT,CORS_ORIGIN='*',NODE_ENV=production,NODE_OPTIONS='--max-old-space-size=1024' \
         --merge-logs \
-        --autorestart \
         --max-memory-restart 500M \
         >/dev/null 2>&1; then
         log_success "Backend started"
@@ -366,11 +366,10 @@ start_services() {
     log_info "Starting frontend service..."
     cd "$FRONT_DIR"
     
-    if pm2 start "node server.js" \
+    if pm2 start server.cjs \
         --name "$FRONT_NAME" \
         --env PORT=$FRONT_PORT \
         --merge-logs \
-        --autorestart \
         --max-memory-restart 300M \
         >/dev/null 2>&1; then
         log_success "Frontend started"
