@@ -41,13 +41,13 @@ log_step() {
 
 # Find project directory
 find_project_dir() {
-    log_step "Step 1: Find project directory"
+    log_step "步骤 1: 查找项目目录"
     
     # Try common locations
     for dir in /opt/ai-chat/ai-chat-app /opt/ai-chat-app /root/ai-chat-app ~/ai-chat-app ./ai-chat-app .; do
         if [ -d "$dir" ] && [ -f "$dir/frontend/package.json" ]; then
             PROJECT_DIR="$dir"
-            log_success "Found project: $PROJECT_DIR"
+            log_success "找到项目: $PROJECT_DIR"
             return 0
         fi
     done
@@ -197,7 +197,7 @@ verify_build() {
 
 # Main execution
 main() {
-    log_info "AI Chat App - Frontend Build Recovery Tool"
+    log_info "AI Chat App - Frontend Build Recovery Tool (聚合AI 前端构建恢复工具)"
     echo ""
     
     # Use provided directory or find it
@@ -218,25 +218,25 @@ main() {
     
     if rebuild_frontend; then
         verify_build && {
-            log_step "Recovery Complete"
+            log_step "恢复完成"
             echo ""
-            echo -e "${GREEN}✓ Frontend build successful!${NC}"
+            echo -e "${GREEN}✓ 前端构建成功！${NC}"
             echo ""
-            echo "Next steps:"
-            echo "1. If services are running, they will auto-reload"
-            echo "2. Visit: http://localhost:6558 (or your configured port)"
+            echo "后续步骤:"
+            echo "1. 如果服务正在运行，会自动重新加载"
+            echo "2. 访问: http://localhost:6558 (或你配置的端口)"
             echo ""
         }
     else
-        log_step "Recovery Failed"
+        log_step "恢复失败"
         echo ""
-        echo -e "${RED}✗ Unable to build frontend${NC}"
+        echo -e "${RED}✗ 无法构建前端${NC}"
         echo ""
-        echo "Troubleshooting steps:"
-        echo "1. Check system memory: free -m"
-        echo "2. Check disk space: df -h"
-        echo "3. View build logs: npm run build (manually in frontend dir)"
-        echo "4. Check Node version: node -v (should be 18+)"
+        echo "故障排查步骤:"
+        echo "1. 检查系统内存: free -m"
+        echo "2. 检查磁盘空间: df -h"
+        echo "3. 查看构建日志: npm run build (手动在 frontend 目录)"
+        echo "4. 检查 Node 版本: node -v (应该是 18+)"
         echo ""
         exit 1
     fi
