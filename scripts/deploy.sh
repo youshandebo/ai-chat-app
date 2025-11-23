@@ -207,10 +207,12 @@ build_backend() {
     fi
     
     log_info "Compiling TypeScript..."
-    if npm run build >/dev/null 2>&1; then
+    # Use increased memory for TypeScript compilation
+    if NODE_OPTIONS="--max-old-space-size=1024" npm run build >/dev/null 2>&1; then
         log_success "Backend build complete"
     else
         log_error "Backend build failed"
+        log_info "Check backend/.env configuration"
         exit 1
     fi
 }
@@ -235,11 +237,36 @@ VITE_ADMIN_TOKEN=$ADMIN_TOKEN
 EOF
     
     log_info "Build static files..."
-    if npm run build >/dev/null 2>&1; then
+    # Increase Node memory limit for builds
+    if NODE_OPTIONS="--max-old-space-size=2048" npm run build >/dev/null 2>&1; then
         log_success "Frontend build complete"
     else
-        log_error "Frontend build failed"
-        exit 1
+        log_warn "Frontend build failed, retrying with more memory..."
+        if NODE_OPTIONS="--max-old-space-size=3072" npm run build >/dev/null 2>&1; then
+            log_success "Frontend build complete (with increased memory)"
+        else
+            log_error "Frontend build failed even with increased memory"
+            log_info "Trying alternative build strategy..."
+            # Try building without minification as last resort
+            cat > vite.config.ts.bak << 'EOF_VITE'
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
+
+export default defineConfig({
+  plugins: [react()],
+  build: {
+    minify: false,
+    sourcemap: false,
+  }
+})
+EOF_VITE
+            if NODE_OPTIONS="--max-old-space-size=1024" npm run build >/dev/null 2>&1; then
+                log_success "Frontend build complete (with minimal optimization)"
+            else
+                log_error "Frontend build failed after multiple attempts"
+                exit 1
+            fi
+        fi
     fi
 }
 
