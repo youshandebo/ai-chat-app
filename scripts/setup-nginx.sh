@@ -8,7 +8,7 @@ BLUE='\033[0;34m'
 NC='\033[0m'
 
 echo -e "${BLUE}========================================${NC}"
-echo -e "${BLUE}Nginx 反向代理配置脚本${NC}"
+echo -e "${BLUE}自定义端口映射配置脚本${NC}"
 echo -e "${BLUE}========================================${NC}"
 echo ""
 
@@ -22,11 +22,13 @@ fi
 DOMAIN="${1:-yourshandebo.xx.kg}"
 BACKEND_PORT="${2:-6555}"
 FRONTEND_PORT="${3:-6556}"
+LISTEN_PORT="${4:-6557}"
 
 echo -e "${YELLOW}配置信息:${NC}"
 echo -e "  域名:       ${GREEN}$DOMAIN${NC}"
 echo -e "  后端端口:   ${GREEN}$BACKEND_PORT${NC}"
 echo -e "  前端端口:   ${GREEN}$FRONTEND_PORT${NC}"
+echo -e "  监听端口:   ${GREEN}$LISTEN_PORT${NC}"
 echo ""
 
 # 安装 Nginx
@@ -58,10 +60,10 @@ upstream frontend {
     keepalive 32;
 }
 
-# HTTP 服务器配置
+# HTTP 服务器配置 - 自定义端口
 server {
-    listen 80;
-    listen [::]:80;
+    listen $LISTEN_PORT;
+    listen [::]:$LISTEN_PORT;
     server_name $DOMAIN www.$DOMAIN;
     
     # 禁用 gzip 压缩（可选）
@@ -134,26 +136,6 @@ server {
     access_log /var/log/nginx/$DOMAIN-access.log combined buffer=32k flush=5s;
     error_log /var/log/nginx/$DOMAIN-error.log warn;
 }
-
-# HTTPS 重定向（如果配置了 SSL）
-# server {
-#     listen 443 ssl http2;
-#     listen [::]:443 ssl http2;
-#     server_name $DOMAIN www.$DOMAIN;
-#     
-#     ssl_certificate /etc/letsencrypt/live/$DOMAIN/fullchain.pem;
-#     ssl_certificate_key /etc/letsencrypt/live/$DOMAIN/privkey.pem;
-#     
-#     # ... 与上述相同的代理配置 ...
-# }
-
-# HTTP 重定向到 HTTPS
-# server {
-#     listen 80;
-#     listen [::]:80;
-#     server_name $DOMAIN www.$DOMAIN;
-#     return 301 https://\$server_name\$request_uri;
-# }
 EOF
 
 echo -e "${GREEN}✓ 配置文件已创建${NC}"
@@ -193,39 +175,24 @@ fi
 # 防火墙规则
 echo -e "${YELLOW}开放防火墙端口...${NC}"
 if command -v ufw >/dev/null 2>&1; then
-    ufw allow 80/tcp 2>/dev/null || true
-    ufw allow 443/tcp 2>/dev/null || true
+    ufw allow $LISTEN_PORT/tcp 2>/dev/null || true
+    ufw allow $BACKEND_PORT/tcp 2>/dev/null || true
+    ufw allow $FRONTEND_PORT/tcp 2>/dev/null || true
     echo -e "${GREEN}✓ 防火墙规则已更新${NC}"
-fi
-
-# 配置 SSL（可选）
-echo ""
-echo -e "${YELLOW}配置 SSL 证书?${NC}"
-read -p "输入 y 使用 Certbot 配置 HTTPS (y/n): " -n 1 -r
-echo ""
-
-if [[ $REPLY =~ ^[Yy]$ ]]; then
-    if ! command -v certbot >/dev/null 2>&1; then
-        apt install -y certbot python3-certbot-nginx >/dev/null 2>&1
-    fi
-    
-    echo -e "${YELLOW}运行 Certbot...${NC}"
-    certbot --nginx -d $DOMAIN
-    
-    systemctl restart nginx
-    echo -e "${GREEN}✓ SSL 证书已配置${NC}"
 fi
 
 # 显示总结
 echo ""
 echo -e "${GREEN}========================================${NC}"
-echo -e "${GREEN}✓ Nginx 配置完成！${NC}"
+echo -e "${GREEN}✓ 端口映射配置完成！${NC}"
 echo -e "${GREEN}========================================${NC}"
 echo ""
 
 echo -e "${BLUE}访问信息:${NC}"
-echo -e "  域名:     ${GREEN}http://$DOMAIN${NC}"
-echo -e "  日志:     ${GREEN}/var/log/nginx/$DOMAIN-*.log${NC}"
+echo -e "  通过 Nginx:  ${GREEN}http://$DOMAIN:$LISTEN_PORT${NC}"
+echo -e "  后端直连:    ${GREEN}http://localhost:$BACKEND_PORT/api${NC}"
+echo -e "  前端直连:    ${GREEN}http://localhost:$FRONTEND_PORT${NC}"
+echo -e "  日志:        ${GREEN}/var/log/nginx/$DOMAIN-*.log${NC}"
 echo ""
 
 echo -e "${BLUE}常用命令:${NC}"
@@ -235,12 +202,12 @@ echo -e "  查看日志: ${GREEN}sudo tail -f /var/log/nginx/$DOMAIN-access.log$
 echo -e "  检查配置: ${GREEN}sudo nginx -t${NC}"
 echo ""
 
-echo -e "${BLUE}Cloudflare 配置:${NC}"
+echo -e "${BLUE}通过 Cloudflare 访问:${NC}"
 echo -e "  1. 登录 Cloudflare 控制面板"
-echo -e "  2. 选择你的域名 → DNS"
-echo -e "  3. 添加/编辑 A 记录:"
+echo -e "  2. DNS → A 记录"
+echo -e "  3. 配置:"
 echo -e "     名称: $DOMAIN"
 echo -e "     内容: $(curl -s https://api.ipify.org)"
-echo -e "     代理状态: 已代理 (橙色云)"
-echo -e "  4. 检查 SSL/TLS 设置为 Full 或 Flexible"
+echo -e "     代理: 已代理 (橙色云)"
+echo -e "  4. 访问: ${GREEN}http://$DOMAIN:$LISTEN_PORT${NC}"
 echo ""

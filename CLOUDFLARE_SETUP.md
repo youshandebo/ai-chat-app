@@ -16,73 +16,20 @@
 curl -s https://api.ipify.org
 ```
 
-#### 2. **端口不开放**
-- 你提到使用端口 6555+ 
-- 如果 Cloudflare 代理指向的是标准 HTTP/HTTPS 端口（80/443）
-- 需要在服务器上配置反向代理，将 80/443 转发到 6555/6556
+#### 2. **端口配置问题（重要）**
+我们使用 **自定义端口** 而非标准 80/443：
+- 后端应用运行在 **6555** 端口
+- 前端应用运行在 **6556** 端口
+- Nginx 监听 **6557** 端口（用于 Cloudflare 代理）
+
+**通过 Cloudflare 访问**: `http://yourshandebo.xx.kg:6557`
 
 ```bash
-# 使用 Nginx 反向代理
-sudo apt update
-sudo apt install nginx -y
-
-# 编辑配置
-sudo nano /etc/nginx/sites-available/default
-
-# 添加反向代理配置：
-server {
-    listen 80 default_server;
-    listen [::]:80 default_server;
-    
-    server_name yourshandebo.xx.kg;
-    
-    location / {
-        proxy_pass http://localhost:6555;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection 'upgrade';
-        proxy_set_header Host $host;
-        proxy_cache_bypass $http_upgrade;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-    
-    location /api {
-        proxy_pass http://localhost:6556;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection 'upgrade';
-        proxy_set_header Host $host;
-        proxy_cache_bypass $http_upgrade;
-    }
-}
-
-# 测试配置
-sudo nginx -t
-
-# 启动 Nginx
-sudo systemctl restart nginx
+# 测试连接
+curl http://yourshandebo.xx.kg:6557/api/models
 ```
 
-#### 3. **Cloudflare 防火墙规则**
-在 Cloudflare 面板检查：
-- **Security > Firewall Rules** - 检查是否有阻止规则
-- **Page Rules** - 检查是否有冲突的页面规则
-- **Performance** - 检查缓存设置
-
-#### 4. **SSL/TLS 配置不匹配**
-在 Cloudflare SSL/TLS 设置中：
-- 如果选了 "Full (strict)"，源服务器必须有有效的 HTTPS 证书
-- 建议选 "Flexible" 或 "Full"
-
-```bash
-# 获取免费 SSL 证书
-sudo apt install certbot python3-certbot-nginx -y
-sudo certbot certonly -d yourshandebo.xx.kg --standalone
-```
-
-#### 5. **CORS 配置问题**
+#### 3. **CORS 配置问题**
 编辑后端 `.env`：
 
 ```bash
@@ -92,8 +39,22 @@ nano .env
 # 改为允许任何来源
 CORS_ORIGIN=*
 # 或指定你的域名
-CORS_ORIGIN=https://yourshandebo.xx.kg
+CORS_ORIGIN=https://yourshandebo.xx.kg:6557
 ```
+
+#### 4. **防火墙规则**
+```bash
+# 开放必要的端口
+sudo ufw allow 6555/tcp  # 后端
+sudo ufw allow 6556/tcp  # 前端
+sudo ufw allow 6557/tcp  # Nginx
+```
+
+#### 5. **Cloudflare 防火墙规则**
+在 Cloudflare 面板检查：
+- **Security > Firewall Rules** - 检查是否有阻止规则
+- **Page Rules** - 检查是否有冲突的页面规则
+- **Performance** - 检查缓存设置
 
 ---
 
@@ -111,106 +72,40 @@ lsof -i -P -n | grep LISTEN
 # 3. 查看防火墙
 sudo ufw status
 
-# 如果防火墙未开放 80 和 443 端口
-sudo ufw allow 80/tcp
-sudo ufw allow 443/tcp
+# 如果防火墙未开放所需端口
 sudo ufw allow 6555/tcp
 sudo ufw allow 6556/tcp
+sudo ufw allow 6557/tcp
 ```
 
-### 第二步：配置 Nginx 反向代理
+### 第二步：配置 Nginx（可选）
+
+如果要通过自定义端口 6557 访问，需要配置 Nginx：
 
 ```bash
-# 安装 Nginx
-sudo apt update
-sudo apt install nginx -y
+# 安装并配置 Nginx
+sudo bash scripts/setup-nginx.sh yourshandebo.xx.kg 6555 6556 6557
 
-# 创建配置文件
-sudo tee /etc/nginx/sites-available/yourshandebo.xx.kg > /dev/null << 'EOF'
-upstream backend {
-    server localhost:6555;
-}
-
-upstream frontend {
-    server localhost:6556;
-}
-
-server {
-    listen 80;
-    listen [::]:80;
-    server_name yourshandebo.xx.kg;
-    
-    # 重定向到 HTTPS（如果有 SSL）
-    # return 301 https://$server_name$request_uri;
-    
-    # 前端应用
-    location / {
-        proxy_pass http://frontend;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection 'upgrade';
-        proxy_set_header Host $host;
-        proxy_cache_bypass $http_upgrade;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-    
-    # 后端 API
-    location /api {
-        proxy_pass http://backend;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection 'upgrade';
-        proxy_set_header Host $host;
-        proxy_cache_bypass $http_upgrade;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-    }
-}
-EOF
-
-# 启用配置
-sudo ln -sf /etc/nginx/sites-available/yourshandebo.xx.kg /etc/nginx/sites-enabled/
-
-# 删除默认配置
-sudo rm -f /etc/nginx/sites-enabled/default
-
-# 测试配置
-sudo nginx -t
-
-# 启动 Nginx
-sudo systemctl restart nginx
+# 配置参数说明：
+# - yourshandebo.xx.kg  : 你的域名
+# - 6555                : 后端应用端口
+# - 6556                : 前端应用端口
+# - 6557                : Nginx 监听端口（对外暴露）
 ```
 
-### 第三步：配置 HTTPS（可选但推荐）
-
-```bash
-# 安装 Certbot
-sudo apt install certbot python3-certbot-nginx -y
-
-# 获取证书
-sudo certbot --nginx -d yourshandebo.xx.kg
-
-# 自动续期
-sudo systemctl enable certbot.timer
-```
-
-### 第四步：在 Cloudflare 配置域名解析
+### 第三步：在 Cloudflare 配置 DNS
 
 1. 登录 Cloudflare 控制面板
-2. 选择你的域名
-3. 在 **DNS** 标签中：
+2. 在 **DNS** 标签中：
    - 类型：**A**
-   - 名称：**yourshandebo.xx.kg** （或子域如 app）
-   - 内容：**你的服务器公网IP**（查看前面的 curl 命令结果）
+   - 名称：**yourshandebo.xx.kg**
+   - 内容：**你的服务器公网IP**
    - 代理状态：**已代理（橙色云）** ✓
    - TTL：**自动**
 
-4. 检查 **SSL/TLS** 设置：
-   - 选择 **Full** 或 **Flexible**（取决于是否配置了 HTTPS）
+3. 不需要配置 SSL/TLS（我们使用 HTTP 自定义端口）
 
-### 第五步：部署应用
+### 第四步：部署应用
 
 ```bash
 # 在服务器上部署
@@ -221,11 +116,9 @@ cd ai-chat-app
 # 运行部署脚本
 bash scripts/deploy.sh
 
-# 部署脚本会自动：
-# - 检查依赖
-# - 构建后端 (端口 6555)
-# - 构建前端 (端口 6556)
-# - 启动 PM2 进程
+# 脚本会自动启动：
+# - 后端: http://localhost:6555
+# - 前端: http://localhost:6556
 ```
 
 ---
@@ -236,15 +129,17 @@ bash scripts/deploy.sh
 # 测试 Cloudflare DNS 解析
 nslookup yourshandebo.xx.kg
 
-# 测试 HTTP 连接
-curl -v http://yourshandebo.xx.kg
+# 直接连接到本地应用
+curl http://localhost:6555/api/models
+curl http://localhost:6556
 
-# 测试后端 API
-curl http://yourshandebo.xx.kg/api/models
+# 通过 Nginx 反向代理访问
+curl http://localhost:6557/api/models
+curl http://localhost:6557
 
-# 监控日志
-tail -f /var/log/nginx/access.log
-tail -f /var/log/nginx/error.log
+# 通过 Cloudflare 代理域名访问
+curl http://yourshandebo.xx.kg:6557/api/models
+curl http://yourshandebo.xx.kg:6557
 ```
 
 ---
@@ -252,24 +147,31 @@ tail -f /var/log/nginx/error.log
 ## 如果还是无法访问
 
 ```bash
-# 1. 检查 Nginx 状态
-sudo systemctl status nginx
-
-# 2. 查看 Nginx 错误日志
-sudo tail -f /var/log/nginx/error.log
-
-# 3. 检查应用是否运行
+# 1. 检查各个应用是否运行
 pm2 list
 
-# 4. 查看应用日志
+# 2. 检查 Nginx 状态
+sudo systemctl status nginx
+sudo nginx -t
+
+# 3. 检查应用日志
 pm2 log
 
-# 5. 直接访问本地端口
+# 4. 查看 Nginx 错误日志
+sudo tail -f /var/log/nginx/yourshandebo.xx.kg-error.log
+
+# 5. 检查防火墙
+sudo ufw status verbose
+
+# 6. 检查端口占用
+lsof -i :6555
+lsof -i :6556
+lsof -i :6557
+
+# 7. 测试本地端口连接
 curl http://localhost:6555/api/models
 curl http://localhost:6556
-
-# 6. 测试防火墙
-sudo ufw status verbose
+curl http://localhost:6557
 ```
 
 ---
@@ -277,11 +179,11 @@ sudo ufw status verbose
 ## 关键检查清单
 
 - [ ] 服务器公网 IP 正确配置在 Cloudflare
-- [ ] Nginx 反向代理已启动
-- [ ] 防火墙已开放 80/443 端口
-- [ ] 应用已启动在 6555/6556
-- [ ] CORS 配置为 `*` 或你的域名
-- [ ] Cloudflare SSL/TLS 设置为 Full 或 Flexible
+- [ ] 后端应用运行在 6555
+- [ ] 前端应用运行在 6556
+- [ ] Nginx 运行并监听 6557
+- [ ] 防火墙已开放 6555/6556/6557 端口
+- [ ] CORS 配置为 `*` 或你的域名:端口
 - [ ] DNS 记录指向正确的 IP
 - [ ] 在 Cloudflare 控制面板检查无防火墙规则阻止
 
@@ -315,24 +217,63 @@ echo "=== DNS 解析 ==="
 nslookup yourshandebo.xx.kg
 echo ""
 
-echo "=== 连接测试 ==="
-curl -v http://yourshandebo.xx.kg | head -20
+echo "=== 本地连接测试 ==="
+echo "后端 API:"
+curl -s http://localhost:6555/api/models | head -5
+echo ""
+echo "前端:"
+curl -s http://localhost:6556 | head -5
+echo ""
+echo "Nginx:"
+curl -s http://localhost:6557 | head -5
 ```
 
 ---
 
-## 问题排查树
+## 端口映射说明
 
 ```
-能通过 IP 直接访问? 
-├─ 是 → 问题在 DNS/Cloudflare
-│   ├─ 检查 DNS 解析
-│   ├─ 检查 Cloudflare 防火墙规则
-│   └─ 检查 Cloudflare 页面规则
-│
-└─ 否 → 问题在服务器/应用
-    ├─ 检查 Nginx 是否运行
-    ├─ 检查应用是否运行
-    ├─ 检查防火墙端口规则
-    └─ 检查应用日志错误
+互联网 → Cloudflare DNS
+         ↓
+    yourshandebo.xx.kg:6557
+         ↓
+    你的服务器:6557 (Nginx)
+         ↓
+    ┌────────────────┬───────────────┐
+    ↓                ↓
+localhost:6556    localhost:6555
+(前端应用)        (后端 API)
 ```
+
+---
+
+## 访问地址
+
+| 服务 | 本地直连 | Nginx代理 | Cloudflare代理 |
+|------|---------|----------|----------------|
+| 前端 | http://localhost:6556 | http://localhost:6557 | http://yourshandebo.xx.kg:6557 |
+| 后端 | http://localhost:6555/api | http://localhost:6557/api | http://yourshandebo.xx.kg:6557/api |
+| 管理 | http://localhost:6556/admin | http://localhost:6557/admin | http://yourshandebo.xx.kg:6557/admin |
+
+---
+
+## 常见错误
+
+### 错误 1: `Cannot connect to yourshandebo.xx.kg`
+- ✓ 检查 DNS 解析：`nslookup yourshandebo.xx.kg`
+- ✓ 检查防火墙：`sudo ufw status`
+- ✓ 检查应用：`pm2 list`
+
+### 错误 2: `Connection refused on port 6557`
+- ✓ Nginx 未运行：`sudo systemctl status nginx`
+- ✓ 端口被占用：`lsof -i :6557`
+- ✓ 配置错误：`sudo nginx -t`
+
+### 错误 3: `502 Bad Gateway`
+- ✓ 后端未运行：`curl http://localhost:6555`
+- ✓ 前端未运行：`curl http://localhost:6556`
+- ✓ 查看日志：`sudo tail -f /var/log/nginx/yourshandebo.xx.kg-error.log`
+
+---
+
+

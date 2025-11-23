@@ -1,49 +1,152 @@
 #!/usr/bin/env bash
+
+# ============================================================================
+# AI Chat App - One-Click Complete Deployment Script
+# Function: Clone from GitHub -> Auto check environment -> Auto allocate ports -> Build -> Start -> Diagnose
+# Usage: bash deploy.sh [install_dir] [BACK_PORT] [FRONT_PORT]
+# Example: bash deploy.sh /opt/ai-chat 6555 6556
+# ============================================================================
+
 set -e
 
-# 颜色输出
+# Color output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
+CYAN='\033[0;36m'
 NC='\033[0m'
 
-ROOT_DIR=$(cd "$(dirname "$0")/.." && pwd)
-FRONT_DIR="$ROOT_DIR/frontend"
-BACK_DIR="$ROOT_DIR/backend"
-DATA_DIR="$BACK_DIR/data"
-
-BACK_PORT="${BACK_PORT:-}"
-FRONT_PORT="${FRONT_PORT:-}"
+# Configuration
+GITHUB_REPO="https://github.com/youshandebo/ai-chat-app.git"
+INSTALL_DIR="${1:-.}"
+BACK_PORT="${2:-}"
+FRONT_PORT="${3:-}"
 ADMIN_TOKEN="${ADMIN_TOKEN:-fnx081013fnx}"
 
-echo -e "${BLUE}========================================${NC}"
-echo -e "${BLUE}聚合AI - 一键部署脚本${NC}"
-echo -e "${BLUE}========================================${NC}"
-echo ""
+# Print banner
+print_banner() {
+    echo -e "${BLUE}"
+    echo "╔════════════════════════════════════════╗"
+    echo "║   🚀 AI Chat One-Click Deploy v2.0    ║"
+    echo "║   Clone → Check → Build → Start       ║"
+    echo "╚════════════════════════════════════════╝"
+    echo -e "${NC}"
+}
 
-# 检查环境
-echo -e "${YELLOW}[1/6] 检查环境...${NC}"
+# Log functions
+log_info() {
+    echo -e "${BLUE}[i]${NC} $1"
+}
 
-if ! command -v node >/dev/null 2>&1; then
-    echo -e "${RED}✗ Node.js 未安装${NC}"
-    exit 1
-fi
+log_success() {
+    echo -e "${GREEN}[✓]${NC} $1"
+}
 
-if ! command -v npm >/dev/null 2>&1; then
-    echo -e "${RED}✗ npm 未安装${NC}"
-    exit 1
-fi
+log_error() {
+    echo -e "${RED}[✗]${NC} $1"
+}
 
-if ! command -v git >/dev/null 2>&1; then
-    echo -e "${RED}✗ git 未安装${NC}"
-    exit 1
-fi
+log_warn() {
+    echo -e "${YELLOW}[!]${NC} $1"
+}
 
-echo -e "${GREEN}✓ Node.js $(node -v)${NC}"
-echo -e "${GREEN}✓ npm $(npm -v)${NC}"
+log_step() {
+    echo ""
+    echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${BLUE}$1${NC}"
+    echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+}
 
-# 端口检测
+# Determine project directory
+determine_root_dir() {
+    log_step "Step 1/8: Determine project directory"
+    
+    if [ -f "scripts/deploy.sh" ] && [ -d "backend" ] && [ -d "frontend" ]; then
+        log_info "Detected existing project directory"
+        ROOT_DIR=$(pwd)
+        CLONE_NEEDED=false
+    else
+        log_info "Need to clone from GitHub"
+        
+        if [ -d "$INSTALL_DIR/ai-chat-app" ]; then
+            log_warn "Directory exists: $INSTALL_DIR/ai-chat-app"
+            ROOT_DIR="$INSTALL_DIR/ai-chat-app"
+            CLONE_NEEDED=false
+        else
+            log_info "Clone project to: $INSTALL_DIR/ai-chat-app"
+            mkdir -p "$INSTALL_DIR"
+            cd "$INSTALL_DIR"
+            
+            if git clone "$GITHUB_REPO" ai-chat-app 2>&1 | tail -3; then
+                ROOT_DIR="$INSTALL_DIR/ai-chat-app"
+                CLONE_NEEDED=true
+                log_success "Project cloned"
+            else
+                log_error "Unable to clone project"
+                exit 1
+            fi
+        fi
+    fi
+    
+    FRONT_DIR="$ROOT_DIR/frontend"
+    BACK_DIR="$ROOT_DIR/backend"
+    DATA_DIR="$BACK_DIR/data"
+    
+    log_success "Project directory: $ROOT_DIR"
+    cd "$ROOT_DIR"
+}
+
+# Check environment
+check_environment() {
+    log_step "Step 2/8: Check system environment"
+    
+    local missing_deps=()
+    
+    if ! command -v node >/dev/null 2>&1; then
+        missing_deps+=("Node.js")
+    fi
+    
+    if ! command -v npm >/dev/null 2>&1; then
+        missing_deps+=("npm")
+    fi
+    
+    if ! command -v git >/dev/null 2>&1; then
+        missing_deps+=("git")
+    fi
+    
+    if [ ${#missing_deps[@]} -gt 0 ]; then
+        log_error "Missing required components: ${missing_deps[*]}"
+        exit 1
+    fi
+    
+    log_success "Node.js $(node -v)"
+    log_success "npm $(npm -v)"
+    log_success "git $(git --version | awk '{print $3}')"
+}
+
+# Check and install PM2
+check_pm2() {
+    log_step "Step 3/8: Check PM2 process manager"
+    
+    if command -v pm2 >/dev/null 2>&1; then
+        log_success "PM2 installed ($(pm2 -v))"
+    else
+        log_warn "PM2 not installed, installing..."
+        if sudo npm install -g pm2 >/dev/null 2>&1; then
+            log_success "PM2 installed"
+        elif npm install -g pm2 >/dev/null 2>&1; then
+            log_success "PM2 installed"
+        else
+            log_error "Unable to install PM2"
+            exit 1
+        fi
+    fi
+    
+    pm2 update >/dev/null 2>&1 || true
+}
+
+# Port detection function
 is_port_free() {
     local port=$1
     if command -v lsof >/dev/null 2>&1; then
@@ -57,139 +160,295 @@ is_port_free() {
     fi
 }
 
-if [ -z "$BACK_PORT" ] || [ -z "$FRONT_PORT" ]; then
-    p=6555
-    echo -e "${YELLOW}  寻找可用端口...${NC}"
-    while true; do
-        fp=$((p + 1))
-        if is_port_free "$p" && is_port_free "$fp"; then
-            BACK_PORT="${BACK_PORT:-$p}"
-            FRONT_PORT="${FRONT_PORT:-$fp}"
-            break
-        fi
-        p=$((p + 1))
-        if [ $p -gt 7000 ]; then
-            echo -e "${RED}✗ 无法找到可用端口${NC}"
+# Auto allocate ports
+allocate_ports() {
+    log_step "Step 4/8: Allocate service ports"
+    
+    if [ -z "$BACK_PORT" ] || [ -z "$FRONT_PORT" ]; then
+        log_info "Auto scanning available ports (starting from 6555)..."
+        
+        local p=6555
+        local max_port=7000
+        
+        while [ $p -le $max_port ]; do
+            local fp=$((p + 1))
+            
+            if is_port_free "$p" && is_port_free "$fp"; then
+                BACK_PORT="${BACK_PORT:-$p}"
+                FRONT_PORT="${FRONT_PORT:-$fp}"
+                log_success "Found available port combination"
+                break
+            fi
+            
+            p=$((p + 1))
+        done
+        
+        if [ -z "$BACK_PORT" ] || [ -z "$FRONT_PORT" ]; then
+            log_error "Unable to find available ports"
             exit 1
         fi
-    done
-fi
+    fi
+    
+    log_success "Backend port: $BACK_PORT"
+    log_success "Frontend port: $FRONT_PORT"
+}
 
-echo -e "${GREEN}✓ 后端端口: $BACK_PORT${NC}"
-echo -e "${GREEN}✓ 前端端口: $FRONT_PORT${NC}"
+# Build backend
+build_backend() {
+    log_step "Step 5/8: Build backend"
+    
+    cd "$BACK_DIR"
+    log_info "Installing dependencies..."
+    
+    if npm install --legacy-peer-deps >/dev/null 2>&1; then
+        log_success "Dependencies installed"
+    else
+        npm install
+    fi
+    
+    log_info "Compiling TypeScript..."
+    if npm run build >/dev/null 2>&1; then
+        log_success "Backend build complete"
+    else
+        log_error "Backend build failed"
+        exit 1
+    fi
+}
 
-# 构建
-echo ""
-echo -e "${YELLOW}[2/6] 构建后端...${NC}"
-cd "$BACK_DIR"
-npm install --legacy-peer-deps >/dev/null 2>&1 || npm install
-npm run build 2>&1 | grep -E "(✓|✗|error)" || echo -e "${GREEN}✓ 后端构建完成${NC}"
-
-echo ""
-echo -e "${YELLOW}[3/6] 构建前端...${NC}"
-cd "$FRONT_DIR"
-npm install --legacy-peer-deps >/dev/null 2>&1 || npm install
-
-cat > .env << EOF
+# Build frontend
+build_frontend() {
+    log_step "Step 6/8: Build frontend"
+    
+    cd "$FRONT_DIR"
+    log_info "Installing dependencies..."
+    
+    if npm install --legacy-peer-deps >/dev/null 2>&1; then
+        log_success "Dependencies installed"
+    else
+        npm install
+    fi
+    
+    log_info "Configure environment variables..."
+    cat > .env << EOF
 VITE_BACKEND_BASE=http://localhost:$BACK_PORT
 VITE_ADMIN_TOKEN=$ADMIN_TOKEN
 EOF
+    
+    log_info "Build static files..."
+    if npm run build >/dev/null 2>&1; then
+        log_success "Frontend build complete"
+    else
+        log_error "Frontend build failed"
+        exit 1
+    fi
+}
 
-npm run build 2>&1 | grep -E "(✓|✗|error)" || echo -e "${GREEN}✓ 前端构建完成${NC}"
-
-# 配置环境
-echo ""
-echo -e "${YELLOW}[4/6] 配置环境...${NC}"
-mkdir -p "$DATA_DIR"
-
-cd "$BACK_DIR"
-cat > .env << EOF
+# Setup environment
+setup_environment() {
+    log_step "Step 7/8: Configure runtime environment"
+    
+    mkdir -p "$DATA_DIR"
+    log_info "Data directory: $DATA_DIR"
+    
+    cd "$BACK_DIR"
+    log_info "Configuring backend..."
+    cat > .env << EOF
 PORT=$BACK_PORT
 CORS_ORIGIN=*
 ADMIN_TOKEN=$ADMIN_TOKEN
 RATE_LIMIT_PER_MINUTE=120
 NODE_ENV=production
 EOF
-echo -e "${GREEN}✓ 后端配置完成${NC}"
-
-# 检查 PM2
-if ! command -v pm2 >/dev/null 2>&1; then
-    echo -e "${YELLOW}  安装 PM2...${NC}"
-    sudo npm install -g pm2 >/dev/null 2>&1 || npm install -g pm2
-fi
-
-# 启动服务
-echo ""
-echo -e "${YELLOW}[5/6] 启动服务...${NC}"
-
-BACK_NAME="ai-chat-backend-$BACK_PORT"
-FRONT_NAME="ai-chat-frontend-$FRONT_PORT"
-
-cd "$BACK_DIR"
-PORT="$BACK_PORT" CORS_ORIGIN="*" pm2 start "npm start" --name "$BACK_NAME" --update-env 2>&1 | grep -E "(started|restarted)" || true
-echo -e "${GREEN}✓ 后端已启动${NC}"
-
-cd "$FRONT_DIR"
-cat > server.js << 'EOFJS'
+    
+    cd "$FRONT_DIR"
+    log_info "Configure frontend Express server..."
+    cat > server.js << 'EOFJS'
 const express = require('express');
 const path = require('path');
+const fs = require('fs');
+
 const app = express();
-app.use(express.static('dist'));
+const distPath = path.join(__dirname, 'dist');
+
+if (!fs.existsSync(distPath)) {
+    console.error('Error: dist directory not found.');
+    process.exit(1);
+}
+
+app.use(express.static(distPath));
+
 app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, 'dist', 'index.html'));
+    res.sendFile(path.join(distPath, 'index.html'), err => {
+        if (err) {
+            res.status(500).send('Server error');
+        }
+    });
 });
+
+app.get('/health', (req, res) => {
+    res.json({ status: 'ok' });
+});
+
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`Frontend running on port ${PORT}`);
+const HOST = '0.0.0.0';
+
+app.listen(PORT, HOST, () => {
+    console.log(`[Frontend] Running on http://${HOST}:${PORT}`);
+});
+
+process.on('SIGTERM', () => {
+    console.log('[Frontend] Shutting down...');
+    process.exit(0);
 });
 EOFJS
+    
+    if ! grep -q "express" package.json 2>/dev/null; then
+        npm install express >/dev/null 2>&1 || true
+    fi
+    
+    log_success "Environment configured"
+}
 
-npm install express >/dev/null 2>&1 || true
-PORT="$FRONT_PORT" pm2 start "node server.js" --name "$FRONT_NAME" --update-env 2>&1 | grep -E "(started|restarted)" || true
-echo -e "${GREEN}✓ 前端已启动${NC}"
+# Start services
+start_services() {
+    log_step "Step 8/8: Start services"
+    
+    local BACK_NAME="ai-chat-backend-$BACK_PORT"
+    local FRONT_NAME="ai-chat-frontend-$FRONT_PORT"
+    
+    pm2 delete "$BACK_NAME" 2>/dev/null || true
+    pm2 delete "$FRONT_NAME" 2>/dev/null || true
+    sleep 1
+    
+    log_info "Starting backend service..."
+    cd "$BACK_DIR"
+    
+    if pm2 start "npm start" \
+        --name "$BACK_NAME" \
+        --env PORT=$BACK_PORT,CORS_ORIGIN='*',NODE_ENV=production \
+        --merge-logs \
+        --autorestart \
+        --max-memory-restart 500M \
+        >/dev/null 2>&1; then
+        log_success "Backend started"
+    else
+        log_error "Backend startup failed"
+        exit 1
+    fi
+    
+    log_info "Starting frontend service..."
+    cd "$FRONT_DIR"
+    
+    if pm2 start "node server.js" \
+        --name "$FRONT_NAME" \
+        --env PORT=$FRONT_PORT \
+        --merge-logs \
+        --autorestart \
+        --max-memory-restart 300M \
+        >/dev/null 2>&1; then
+        log_success "Frontend started"
+    else
+        log_error "Frontend startup failed"
+        exit 1
+    fi
+    
+    pm2 save >/dev/null 2>&1 || true
+    pm2 startup >/dev/null 2>&1 || true
+}
 
-pm2 save >/dev/null 2>&1 || true
+# Wait and health check
+wait_and_health_check() {
+    log_step "Wait for services to start"
+    
+    local timeout=30
+    local elapsed=0
+    
+    log_info "Checking backend health..."
+    while [ $elapsed -lt $timeout ]; do
+        if curl -s "http://localhost:$BACK_PORT/api/admin/health" \
+            -H "Authorization: Bearer $ADMIN_TOKEN" 2>/dev/null | grep -q "modelsCount"; then
+            log_success "Backend health check passed"
+            break
+        fi
+        elapsed=$((elapsed + 1))
+        sleep 1
+    done
+    
+    if [ $elapsed -ge $timeout ]; then
+        log_warn "Backend startup is slow"
+    fi
+    
+    log_info "Checking frontend..."
+    elapsed=0
+    while [ $elapsed -lt $timeout ]; do
+        local http_code=$(curl -s -o /dev/null -w "%{http_code}" "http://localhost:$FRONT_PORT" 2>/dev/null || echo "000")
+        if [ "$http_code" = "200" ]; then
+            log_success "Frontend health check passed"
+            break
+        fi
+        elapsed=$((elapsed + 1))
+        sleep 1
+    done
+    
+    if [ $elapsed -ge $timeout ]; then
+        log_warn "Frontend startup is slow"
+    fi
+}
 
-# 诊断
-echo ""
-echo -e "${YELLOW}[6/6] 运行诊断...${NC}"
-sleep 2
+# Show completion info
+show_completion_info() {
+    log_step "Deployment complete"
+    
+    echo ""
+    echo -e "${GREEN}╔════════════════════════════════════════╗${NC}"
+    echo -e "${GREEN}║ ✓ AI Chat deployed and started!       ║${NC}"
+    echo -e "${GREEN}╚════════════════════════════════════════╝${NC}"
+    echo ""
+    
+    echo -e "${BLUE}📍 Access URLs:${NC}"
+    echo -e "   Frontend App:   ${GREEN}http://localhost:$FRONT_PORT${NC}"
+    echo -e "   Backend API:    ${GREEN}http://localhost:$BACK_PORT${NC}"
+    echo -e "   Admin Panel:    ${GREEN}http://localhost:$FRONT_PORT/admin${NC}"
+    echo ""
+    
+    echo -e "${BLUE}🔑 Authentication:${NC}"
+    echo -e "   Admin Token: ${GREEN}$ADMIN_TOKEN${NC}"
+    echo ""
+    
+    echo -e "${BLUE}📂 Project Directory:${NC}"
+    echo -e "   ${GREEN}$ROOT_DIR${NC}"
+    echo ""
+    
+    echo -e "${BLUE}⚙️  PM2 Process:${NC}"
+    pm2 list --nostream 2>/dev/null | grep "ai-chat" || pm2 list
+    echo ""
+    
+    echo -e "${BLUE}📝 Common Commands:${NC}"
+    echo -e "   ${GREEN}pm2 log${NC}                      # View all logs"
+    echo -e "   ${GREEN}pm2 list${NC}                     # View process list"
+    echo -e "   ${GREEN}pm2 monit${NC}                    # Real-time monitoring"
+    echo -e "   ${GREEN}bash scripts/diagnose.sh${NC}     # Run diagnostics"
+    echo -e "   ${GREEN}bash scripts/stop.sh${NC}         # Stop all services"
+    echo ""
+}
 
-BACKEND_STATUS=$(curl -s "http://localhost:$BACK_PORT/api/admin/health" \
-  -H "Authorization: Bearer $ADMIN_TOKEN" 2>/dev/null | grep -o "modelsCount" || echo "FAIL")
+# Main function
+main() {
+    print_banner
+    
+    trap 'log_error "Deployment failed!"; exit 1' ERR
+    
+    determine_root_dir
+    check_environment
+    check_pm2
+    allocate_ports
+    build_backend
+    build_frontend
+    setup_environment
+    start_services
+    wait_and_health_check
+    show_completion_info
+}
 
-if [ "$BACKEND_STATUS" != "FAIL" ]; then
-    echo -e "${GREEN}✓ 后端健康${NC}"
-else
-    echo -e "${YELLOW}⚠ 后端启动中...${NC}"
-fi
+main "$@"
 
-FRONTEND_CODE=$(curl -s -o /dev/null -w "%{http_code}" "http://localhost:$FRONT_PORT" 2>/dev/null || echo "000")
-if [ "$FRONTEND_CODE" = "200" ]; then
-    echo -e "${GREEN}✓ 前端正常${NC}"
-else
-    echo -e "${YELLOW}⚠ 前端启动中 (HTTP $FRONTEND_CODE)${NC}"
-fi
-
-# 显示结果
-echo ""
-echo -e "${GREEN}========================================${NC}"
-echo -e "${GREEN}✓ 部署完成！${NC}"
-echo -e "${GREEN}========================================${NC}"
-echo ""
-echo -e "${BLUE}访问信息:${NC}"
-echo -e "  前端:     ${GREEN}http://localhost:$FRONT_PORT${NC}"
-echo -e "  后端:     ${GREEN}http://localhost:$BACK_PORT${NC}"
-echo -e "  管理面板: ${GREEN}http://localhost:$FRONT_PORT/admin${NC}"
-echo -e "  Token:    ${GREEN}$ADMIN_TOKEN${NC}"
-echo ""
-echo -e "${BLUE}PM2 进程:${NC}"
-pm2 list | grep -E "(ai-chat|Name)"
-echo ""
-echo -e "${BLUE}常用命令:${NC}"
-echo -e "  查看日志:   ${GREEN}pm2 log${NC}"
-echo -e "  查看进程:   ${GREEN}pm2 list${NC}"
-echo -e "  重启后端:   ${GREEN}pm2 restart $BACK_NAME${NC}"
-echo -e "  重启前端:   ${GREEN}pm2 restart $FRONT_NAME${NC}"
-echo -e "  停止所有:   ${GREEN}pm2 stop all${NC}"
-echo ""

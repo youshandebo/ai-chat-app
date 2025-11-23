@@ -15,20 +15,31 @@ curl -fsSL https://raw.githubusercontent.com/youshandebo/ai-chat-app/main/script
 |------|------|--------|
 | `deploy.sh` | 完整部署（clone、构建、启动） | `bash scripts/deploy.sh` |
 | `diagnose.sh` | 检查环境和运行状态 | `bash scripts/diagnose.sh` |
-| `setup-nginx.sh` | 配置 Nginx 反向代理 | `sudo bash scripts/setup-nginx.sh yourshandebo.xx.kg` |
+| `setup-nginx.sh` | 配置自定义端口的 Nginx | `sudo bash scripts/setup-nginx.sh yourshandebo.xx.kg 6555 6556 6557` |
 | `stop.sh` | 停止所有服务 | `bash scripts/stop.sh` |
 
 ---
 
 ## 📍 端口分配
 
-部署脚本会自动从端口 6555 开始分配：
+**所有端口从 6555 开始向上递增，不使用标准 80/443 端口：**
 
 ```
 6555  → 后端 API 服务
 6556  → 前端 Web 应用
-6557+ → 如果端口被占用则使用后续端口
+6557  → Nginx 反向代理（对外暴露给 Cloudflare）
+6558+ → 如果端口被占用则使用后续端口
 ```
+
+---
+
+## 🌐 访问方式
+
+| 服务 | 本地直连 | 通过 Nginx | 通过 Cloudflare |
+|------|---------|----------|----------------|
+| 前端 | `http://localhost:6556` | `http://localhost:6557` | `http://yourshandebo.xx.kg:6557` |
+| 后端 API | `http://localhost:6555` | `http://localhost:6557/api` | `http://yourshandebo.xx.kg:6557/api` |
+| 管理面板 | `http://localhost:6556/admin` | `http://localhost:6557/admin` | `http://yourshandebo.xx.kg:6557/admin` |
 
 ---
 
@@ -63,15 +74,13 @@ VITE_ADMIN_TOKEN=fnx081013fnx
 |------|------|------|------|
 | A | yourshandebo.xx.kg | 你的服务器IP | 已代理 ☁️ |
 
-### 2. SSL/TLS 设置
-
-选择: **Full** 或 **Flexible**
+### 2. 不需要 SSL/TLS 配置（使用 HTTP 自定义端口）
 
 ### 3. 验证
 
 ```bash
 nslookup yourshandebo.xx.kg  # 检查 DNS 解析
-curl http://yourshandebo.xx.kg  # 测试访问
+curl http://yourshandebo.xx.kg:6557  # 测试访问
 ```
 
 ---
@@ -102,6 +111,7 @@ sudo systemctl status nginx
 # 检查端口
 lsof -i :6555
 lsof -i :6556
+lsof -i :6557
 
 # 查看日志
 tail -f /var/log/nginx/yourshandebo.xx.kg-error.log
@@ -119,10 +129,10 @@ curl http://localhost:6555/api/admin/health \
 ### 无法通过域名访问
 
 1. ✓ DNS 解析正确？ `nslookup yourshandebo.xx.kg`
-2. ✓ 防火墙开放 80/443？ `sudo ufw status`
+2. ✓ 防火墙开放 6557 端口？ `sudo ufw status`
 3. ✓ Nginx 运行？ `sudo systemctl status nginx`
 4. ✓ 应用运行？ `pm2 list`
-5. ✓ 检查 Cloudflare 防火墙规则
+5. ✓ 本地端口可访问？ `curl http://localhost:6557`
 
 ### 应用启动慢
 
@@ -139,19 +149,21 @@ NODE_ENV=production
 RATE_LIMIT_PER_MINUTE=60  # 降低限流
 ```
 
-### SSL 错误
-
-Cloudflare SSL/TLS 改为 "Flexible" 或部署 SSL 证书：
+### 端口被占用
 
 ```bash
-sudo certbot --nginx -d yourshandebo.xx.kg
+# 查看占用进程
+lsof -i :6557
+
+# 使用其他端口启动 Nginx
+sudo bash scripts/setup-nginx.sh yourshandebo.xx.kg 6555 6556 6558
 ```
 
 ---
 
 ## 📈 管理面板
 
-**URL**: `http://yourshandebo.xx.kg/admin`
+**URL**: `http://yourshandebo.xx.kg:6557/admin` 或 `http://localhost:6557/admin`
 
 **Token**: `fnx081013fnx`
 
@@ -181,8 +193,6 @@ PM2 日志     → ~/.pm2/logs/
 ## 🔐 安全建议
 
 - [ ] 修改 ADMIN_TOKEN 为强密码
-- [ ] 配置 HTTPS/SSL 证书
-- [ ] 启用 Cloudflare 防火墙规则
 - [ ] 定期更新依赖：`npm audit fix`
 - [ ] 备份数据目录：`backend/data/`
 - [ ] 限制 API 调用频率
@@ -198,13 +208,6 @@ PM2 日志     → ~/.pm2/logs/
 gzip on;
 gzip_types text/plain application/json;
 gzip_min_length 1024;
-
-# 配置缓存
-# Cloudflare → Cache Level: Cache Everything
-
-# 启用 HTTP/2
-# 在 nginx.conf 中：
-listen 443 ssl http2;
 ```
 
 ---
@@ -229,12 +232,13 @@ listen 443 ssl http2;
    cd ai-chat-app
    bash scripts/deploy.sh
 
-3. 配置 Nginx（可选）
-   sudo bash scripts/setup-nginx.sh yourshandebo.xx.kg
+3. 配置 Nginx 反向代理（可选）
+   sudo bash scripts/setup-nginx.sh yourshandebo.xx.kg 6555 6556 6557
 
 4. 配置 Cloudflare DNS
    A 记录 → 服务器 IP，代理状态：已代理
+   访问端口：6557
 
-✓ 完成！访问 http://yourshandebo.xx.kg
+✓ 完成！访问 http://yourshandebo.xx.kg:6557
 ```
 
