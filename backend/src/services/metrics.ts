@@ -83,14 +83,19 @@ export function getMetrics(r: Range) {
     days.push(ds);
   }
   let visitorsCount = 0;
+  let totalUniqueVisitors = 0;
   const seen = new Set<string>();
+  const seenAll = new Set<string>();
   for (const ds of days) {
     const set = visitors[ds];
     if (set) {
-      for (const ip of set) if (!seen.has(ip)) { seen.add(ip); visitorsCount += 1; }
+      for (const ip of set) {
+        if (!seen.has(ip)) { seen.add(ip); visitorsCount += 1; }
+        if (!seenAll.has(ip)) { seenAll.add(ip); totalUniqueVisitors += 1; }
+      }
     }
   }
-  return { range: r, active, maxConcurrency: Math.max(maxInRange, active), calls: callsCount, errors: errorsCount, visitors: visitorsCount };
+  return { range: r, active, maxConcurrency: Math.max(maxInRange, active), calls: callsCount, errors: errorsCount, visitors: visitorsCount, totalUniqueVisitors };
 }
 
 export function metricsMiddleware(req: any, res: any, next: any) {
@@ -133,11 +138,26 @@ export function getSeries(range: Range) {
     const callsCount = calls.filter((t) => t >= b.from && t < b.to).length;
     const errorsCount = errors.filter((t) => t >= b.from && t < b.to).length;
     let visitorsCount = 0;
+    // 查找在当前时间桶内的最大并发数
+    let maxConcurrencyInBucket = 0;
     const d = new Date(b.from);
     const ds = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
     const set = visitors[ds];
     if (set) visitorsCount = set.size;
-    return { label: b.label, calls: callsCount, errors: errorsCount, visitors: visitorsCount };
+    
+    // 计算时间桶内的最大并发数
+    const bucketMaxHistory = maxHistory.filter(h => h.ts >= b.from && h.ts < b.to);
+    if (bucketMaxHistory.length > 0) {
+      maxConcurrencyInBucket = Math.max(...bucketMaxHistory.map(h => h.value));
+    }
+    
+    return { 
+      label: b.label, 
+      calls: callsCount, 
+      errors: errorsCount, 
+      visitors: visitorsCount,
+      maxConcurrency: maxConcurrencyInBucket 
+    };
   });
   return series;
 }

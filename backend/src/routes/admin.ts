@@ -7,6 +7,7 @@ const router = express.Router();
 router.post("/reload-models", (req, res) => {
   const auth = (req.get("authorization") || (req.headers["authorization"] as string) || "").trim();
   const token = process.env.ADMIN_TOKEN || "";
+  console.log("Admin access attempt:", { auth, expected: `Bearer ${token}` }); // 调试日志
   if (auth !== `Bearer ${token}`) {
     return res.status(403).json({ error: "无权访问" });
   }
@@ -21,6 +22,7 @@ router.post("/reload-models", (req, res) => {
 router.get("/health", (req, res) => {
   const auth = (req.get("authorization") || (req.headers["authorization"] as string) || "").trim();
   const token = process.env.ADMIN_TOKEN || "";
+  console.log("Health check access attempt:", { auth, expected: `Bearer ${token}` }); // 调试日志
   if (auth !== `Bearer ${token}`) {
     return res.status(403).json({ error: "无权访问" });
   }

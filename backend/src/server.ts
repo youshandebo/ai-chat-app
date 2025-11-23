@@ -11,7 +11,7 @@ import { metricsMiddleware } from "./services/metrics";
 dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = parseInt(process.env.PORT || "4000"); // 默认使用4000端口
 
 const logger = winston.createLogger({
   level: "info",
@@ -21,6 +21,13 @@ const logger = winston.createLogger({
     new winston.transports.File({ filename: "backend/logs/combined.log" }),
     new winston.transports.Console({ format: winston.format.simple() }),
   ],
+});
+
+// 记录关键环境变量，便于调试
+logger.info(`Server starting with config:`, {
+  PORT,
+  ADMIN_TOKEN: process.env.ADMIN_TOKEN ? "[SET]" : "[NOT SET]",
+  CORS_ORIGIN: process.env.CORS_ORIGIN || "[NOT SET]"
 });
 
 app.use(helmet());

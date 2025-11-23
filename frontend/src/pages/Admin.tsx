@@ -21,8 +21,9 @@ export default function Admin() {
   const [loading, setLoading] = useState<boolean>(false);
   const [loadErr, setLoadErr] = useState<string>("");
   const [range, setRange] = useState<string>("24h");
-  const [metrics, setMetrics] = useState<{ visitors: number; maxConcurrency: number; calls: number; errors: number; range: string; series?: { label: string; calls: number; errors: number; visitors: number }[] } | null>(null);
+  const [metrics, setMetrics] = useState<{ visitors: number; totalUniqueVisitors: number; maxConcurrency: number; calls: number; errors: number; range: string; series?: { label: string; calls: number; errors: number; visitors: number; maxConcurrency?: number }[] } | null>(null);
   const [authed, setAuthed] = useState<boolean>(false);
+  const [selectedMetric, setSelectedMetric] = useState<'calls' | 'errors' | 'visitors' | 'maxConcurrency'>('calls');
 
   useEffect(() => {
     localStorage.setItem("ADMIN_TOKEN", token);
@@ -144,29 +145,104 @@ export default function Admin() {
     }
   };
 
-  const Chart = ({ data }: { data: { label: string; calls: number; errors: number }[] }) => {
-    const w = 640; const h = 220; const p = 24;
+  const Chart = ({ data, metricType }: { data: { label: string; value: number }[]; metricType: 'calls' | 'errors' | 'visitors' | 'maxConcurrency' }) => {
+    const w = 640; const h = 220; const p = 40; // 增加左边距以显示Y轴标签
     const xs = data.map((_, i) => p + i * ((w - 2 * p) / Math.max(1, data.length - 1)));
-    const maxY = Math.max(1, ...data.map(d => Math.max(d.calls, d.errors)));
+    const maxY = Math.max(1, ...data.map(d => d.value || 0));
     const y = (v: number) => h - p - v * ((h - 2 * p) / maxY);
-    const path = (k: "calls" | "errors") => data.map((d, i) => `${i === 0 ? "M" : "L"}${xs[i]},${y(d[k])}`).join(" ");
+    const path = data.map((d, i) => `${i === 0 ? "M" : "L"}${xs[i]},${y(d.value || 0)}`).join(" ");
+    
+    // 添加状态以跟踪悬停的点
+    const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
+    
+    // 生成Y轴刻度
+    const yTicks = [];
+    for (let i = 0; i <= 5; i++) {
+      const value = Math.round((maxY / 5) * i);
+      yTicks.push({ value, y: y(value) });
+    }
+    
+    // 获取当前指标类型的名称
+    const metricName = metricType === 'calls' ? '调用' : 
+                      metricType === 'errors' ? '错误' : 
+                      metricType === 'visitors' ? '访客' : '并发';
+    
+    // 设置颜色
+    const metricColor = metricType === 'calls' ? '#6366F1' : 
+                       metricType === 'errors' ? '#EF4444' : 
+                       metricType === 'visitors' ? '#10B981' : '#F59E0B';
+    
     return (
-      <svg width={w} height={h} className="w-full">
-        <line x1={p} y1={h - p} x2={w - p} y2={h - p} stroke="#ddd" />
-        <line x1={p} y1={p} x2={p} y2={h - p} stroke="#ddd" />
-        <motion.path d={path("calls")} fill="none" stroke="#6366F1" strokeWidth={2} initial={{ pathLength: 0 }} animate={{ pathLength: 1 }} transition={{ duration: 0.6 }} />
-        <motion.path d={path("errors")} fill="none" stroke="#EF4444" strokeWidth={2} initial={{ pathLength: 0 }} animate={{ pathLength: 1 }} transition={{ duration: 0.6, delay: 0.1 }} />
-        {data.map((d, i) => (
-          <circle key={`c-${i}`} cx={xs[i]} cy={y(d.calls)} r={3} fill="#6366F1">
-            <title>{`${d.label} 调用 ${d.calls}`}</title>
-          </circle>
-        ))}
-        {data.map((d, i) => (
-          <circle key={`e-${i}`} cx={xs[i]} cy={y(d.errors)} r={3} fill="#EF4444">
-            <title>{`${d.label} 错误 ${d.errors}`}</title>
-          </circle>
-        ))}
-      </svg>
+      <div className="relative">
+        <svg width={w} height={h} className="w-full">
+          {/* X轴和Y轴 */}
+          <line x1={p} y1={h - p} x2={w - p} y2={h - p} stroke="#ddd" />
+          <line x1={p} y1={p} x2={p} y2={h - p} stroke="#ddd" />
+          
+          {/* Y轴刻度和标签 */}
+          {yTicks.map((tick, i) => (
+            <g key={`ytick-${i}`}>
+              <line x1={p - 5} y1={tick.y} x2={p} y2={tick.y} stroke="#ddd" />
+              <text x={p - 10} y={tick.y + 4} textAnchor="end" fontSize="10" fill="#666">{tick.value}</text>
+            </g>
+          ))}
+          
+          {/* X轴标签（只显示部分标签以避免拥挤） */}
+          {data.filter((_, i) => i % Math.ceil(data.length / 5) === 0).map((d, i) => {
+            const actualIndex = i * Math.ceil(data.length / 5);
+            return (
+              <g key={`xlabel-${actualIndex}`}>
+                <line x1={xs[actualIndex]} y1={h - p} x2={xs[actualIndex]} y2={h - p + 5} stroke="#ddd" />
+                <text 
+                  x={xs[actualIndex]} 
+                  y={h - p + 20} 
+                  textAnchor="middle" 
+                  fontSize="10" 
+                  fill="#666"
+                  transform={`rotate(-45, ${xs[actualIndex]}, ${h - p + 20})`}
+                >
+                  {d.label}
+                </text>
+              </g>
+            );
+          })}
+          
+          <motion.path d={path} fill="none" stroke={metricColor} strokeWidth={2} initial={{ pathLength: 0 }} animate={{ pathLength: 1 }} transition={{ duration: 0.6 }} />
+          {data.map((d, i) => (
+            <g key={`data-${i}`}>
+              <circle 
+                cx={xs[i]} 
+                cy={y(d.value || 0)} 
+                r={hoveredIndex === i ? 6 : 3} 
+                fill={metricColor}
+                className="cursor-pointer hover:opacity-80 transition-all"
+                onMouseEnter={() => setHoveredIndex(i)}
+                onMouseLeave={() => setHoveredIndex(null)}
+              >
+                <title>{`${d.label} ${metricName} ${d.value || 0}`}</title>
+              </circle>
+              {hoveredIndex === i && (
+                <text 
+                  x={xs[i]} 
+                  y={y(d.value || 0) - 10} 
+                  textAnchor="middle" 
+                  fontSize="12" 
+                  fill={metricColor}
+                  className="font-medium"
+                >
+                  {d.value || 0}
+                </text>
+              )}
+            </g>
+          ))}
+        </svg>
+        {hoveredIndex !== null && data[hoveredIndex] && (
+          <div className="absolute top-0 left-0 mt-2 text-sm text-gray-600 dark:text-dark-text/80 bg-white dark:bg-dark-card p-2 rounded border border-gray-200 dark:border-dark-border shadow-sm">
+            <div>{data[hoveredIndex].label}</div>
+            <div>{metricName}: {data[hoveredIndex].value || 0}</div>
+          </div>
+        )}
+      </div>
     );
   };
 
@@ -224,7 +300,7 @@ export default function Admin() {
           </motion.div>
           <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="mt-2">
             <div className="p-4 rounded border border-gray-200 dark:border-dark-border">
-              <div className="flex items-center gap-2 mb-2">
+              <div className="flex flex-wrap gap-2 mb-2">
                 {[
                   { k: "24h", t: "24小时" },
                   { k: "7d", t: "一周" },
@@ -241,28 +317,90 @@ export default function Admin() {
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm">
                       <thead>
-                        <tr className="text-left">
-                          <th className="p-2">时间范围</th>
-                          <th className="p-2">访客数</th>
-                          <th className="p-2">并发峰值</th>
-                          <th className="p-2">API调用数</th>
-                          <th className="p-2">报错数</th>
+                        <tr className="text-left border-b border-gray-200 dark:border-dark-border">
+                          <th className="p-2">统计项</th>
+                          <th className="p-2">数值</th>
                         </tr>
                       </thead>
                       <tbody>
-                        <tr>
-                          <td className="p-2">{metrics.range}</td>
+                        <tr className="border-b border-gray-100 dark:border-dark-border/50">
+                          <td className="p-2">时间范围</td>
+                          <td className="p-2">{metrics.range === '24h' ? '24小时' : metrics.range === '7d' ? '一周' : metrics.range === '30d' ? '一月' : '一年'}</td>
+                        </tr>
+                        <tr className="border-b border-gray-100 dark:border-dark-border/50">
+                          <td className="p-2">访客数（该周期）</td>
                           <td className="p-2">{metrics.visitors}</td>
+                        </tr>
+                        <tr className="border-b border-gray-100 dark:border-dark-border/50">
+                          <td className="p-2">总访客数（去重）</td>
+                          <td className="p-2">{metrics.totalUniqueVisitors}</td>
+                        </tr>
+                        <tr className="border-b border-gray-100 dark:border-dark-border/50">
+                          <td className="p-2">并发峰值</td>
                           <td className="p-2">{metrics.maxConcurrency}</td>
+                        </tr>
+                        <tr className="border-b border-gray-100 dark:border-dark-border/50">
+                          <td className="p-2">API调用数</td>
                           <td className="p-2">{metrics.calls}</td>
+                        </tr>
+                        <tr>
+                          <td className="p-2">报错数</td>
                           <td className="p-2">{metrics.errors}</td>
                         </tr>
                       </tbody>
                     </table>
                   </div>
                   {Array.isArray(metrics.series) && metrics.series.length > 0 && (
-                    <div className="mt-2">
-                      <Chart data={metrics.series.map(s => ({ label: s.label, calls: s.calls, errors: s.errors }))} />
+                    <div className="mt-2 space-y-3">
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className="text-left">
+                              <th className="p-2">时间</th>
+                              <th className="p-2">API调用</th>
+                              <th className="p-2">报错</th>
+                              <th className="p-2">访客</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {metrics.series.map((s, idx) => (
+                              <tr key={`row-${idx}`} className="odd:bg-gray-50 dark:odd:bg-dark-bg/40">
+                                <td className="p-2">{s.label}</td>
+                                <td className="p-2">{s.calls}</td>
+                                <td className="p-2">{s.errors}</td>
+                                <td className="p-2">{s.visitors}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                      <div className="flex gap-2 mb-2 flex-wrap">
+                        <span className="text-sm text-gray-600 dark:text-dark-text/80">图表数据:</span>
+                        {['calls', 'errors', 'visitors', 'maxConcurrency'].map((metric) => (
+                          <label key={metric} className="flex items-center gap-1">
+                            <input
+                              type="radio"
+                              name="chartMetric"
+                              value={metric}
+                              checked={selectedMetric === metric}
+                              onChange={(e) => setSelectedMetric(e.target.value as any)}
+                            />
+                            <span className="text-sm">
+                              {metric === 'calls' ? '调用数' : 
+                               metric === 'errors' ? '错误数' : 
+                               metric === 'visitors' ? '访客数' : '并发峰值'}
+                            </span>
+                          </label>
+                        ))}
+                      </div>
+                      <Chart 
+                        key={`${range}-${selectedMetric}`} // 添加selectedMetric到key中，确保在切换指标时重新渲染
+                        data={metrics.series.map(s => ({ 
+                          label: s.label, 
+                          value: s[selectedMetric] || 0
+                        }))}
+                        metricType={selectedMetric}
+                      />
                     </div>
                   )}
                 </div>

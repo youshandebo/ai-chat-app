@@ -32,9 +32,9 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           </div>
         </div>
       </nav>
-      <main className="flex-1 overflow-hidden relative">
+      <main className="flex-1 overflow-y-auto overflow-x-hidden relative">
         <AnimatePresence mode="wait">
-          <motion.div key={loc.pathname} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -12 }} transition={{ duration: 0.2 }} className="h-full" style={{ visibility: overlayRunning ? "hidden" : "visible" }}>
+          <motion.div key={loc.pathname} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -12 }} transition={{ duration: 0.2 }} className="min-h-full" style={{ visibility: overlayRunning ? "hidden" : "visible" }}>
             {children}
           </motion.div>
         </AnimatePresence>
@@ -45,7 +45,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         </AnimatePresence>
       </main>
       <footer className="h-12 border-t border-gray-200 dark:border-dark-border flex items-center justify-center text-sm bg-white dark:bg-dark-card">© 聚合AI</footer>
-      <AnnouncementModal />
+      {loc.pathname !== "/admin" && <AnnouncementModal />}
     </div>
   );
 }
