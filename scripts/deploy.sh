@@ -230,9 +230,21 @@ build_frontend() {
         npm install
     fi
     
+    # Detect public IP for frontend API configuration
+    local BACKEND_URL="http://localhost:$BACK_PORT"
+    if [ -n "$BACKEND_HOST" ]; then
+        BACKEND_URL="http://$BACKEND_HOST:$BACK_PORT"
+    elif command -v curl >/dev/null 2>&1; then
+        local PUBLIC_IP=$(curl -s https://api.ipify.org 2>/dev/null || echo "")
+        if [ -n "$PUBLIC_IP" ]; then
+            BACKEND_URL="http://$PUBLIC_IP:$BACK_PORT"
+        fi
+    fi
+    
     log_info "Configure environment variables..."
+    log_info "Backend URL: $BACKEND_URL"
     cat > .env << EOF
-VITE_BACKEND_BASE=http://localhost:$BACK_PORT
+VITE_BACKEND_BASE=$BACKEND_URL
 VITE_ADMIN_TOKEN=$ADMIN_TOKEN
 EOF
     
