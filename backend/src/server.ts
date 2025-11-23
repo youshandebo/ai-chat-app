@@ -31,15 +31,21 @@ logger.info(`Server starting with config:`, {
 });
 
 app.use(helmet());
-const allowedOrigins = new Set(
-  [process.env.CORS_ORIGIN, "http://localhost:5173", "http://127.0.0.1:5173", "http://[::1]:5173"].filter(Boolean) as string[]
-);
+const corsOrigin = process.env.CORS_ORIGIN || "*";
+const allowedOrigins = corsOrigin === "*" 
+  ? undefined  // 允许所有来源
+  : new Set(
+      [corsOrigin, "http://localhost:5173", "http://127.0.0.1:5173", "http://[::1]:5173"].filter(Boolean) as string[]
+    );
+
 app.use(
   cors({
-    origin: (origin, callback) => {
-      if (!origin || allowedOrigins.has(origin)) callback(null, true);
-      else callback(new Error("CORS not allowed"));
-    },
+    origin: allowedOrigins === undefined 
+      ? true  // 允许所有来源
+      : (origin, callback) => {
+          if (!origin || allowedOrigins.has(origin)) callback(null, true);
+          else callback(new Error("CORS not allowed"));
+        },
     credentials: true,
   })
 );
