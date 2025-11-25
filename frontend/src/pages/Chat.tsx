@@ -11,12 +11,9 @@ export default function Chat() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string>("");
   const abortRef = useRef<AbortController | null>(null);
-  const base = (() => {
-    const env = import.meta.env.VITE_BACKEND_BASE as string | undefined;
-    if (env) return env;
-    return window.location.origin;
-  })();
   const current = useMemo(() => chats.find((c) => c.id === currentChatId), [chats, currentChatId]);
+
+
   useEffect(() => {
     if (!currentChatId) {
       if (chats.length === 0) createChat("gemini-2.5-flash");
@@ -59,8 +56,8 @@ export default function Chat() {
             setIsGenerating(true);
             try {
               const payload = { messages: current.messages.concat([{ id: userMsgId, role: "user", content, timestamp: Date.now(), modelId }]), stream: true } as any;
-              console.log("send payload", payload, base);
-              const res = await fetch(`${base}/api/chat/${modelId}`, {
+              console.log("send payload", payload);
+              const res = await fetch(`/api/chat/${modelId}`, {
                 method: "POST",
                 mode: "cors",
                 headers: { "Content-Type": "application/json", "Accept": "text/event-stream" },
@@ -74,7 +71,7 @@ export default function Chat() {
                 const decoder = new TextDecoder();
                 let buf = "";
                 let acc = "";
-                for (;;) {
+                for (; ;) {
                   const { value, done } = await reader.read();
                   if (done) break;
                   buf += decoder.decode(value, { stream: true });
@@ -93,7 +90,7 @@ export default function Chat() {
                             acc += chunk;
                             updateMessage(chatId, asstId, acc);
                           }
-                        } catch {}
+                        } catch { }
                       }
                     }
                   }

@@ -11,8 +11,9 @@ import { metricsMiddleware } from "./services/metrics";
 dotenv.config();
 
 const app = express();
-const PORT = parseInt(process.env.PORT || "4000"); // 默认使用4000端口
+const PORT = parseInt(process.env.PORT || "4000");
 
+// Enhanced logging
 const logger = winston.createLogger({
   level: "info",
   format: winston.format.combine(winston.format.timestamp(), winston.format.json()),
@@ -23,29 +24,34 @@ const logger = winston.createLogger({
   ],
 });
 
-// 记录关键环境变量，便于调试
+// Log startup config (masked)
 logger.info(`Server starting with config:`, {
   PORT,
-  ADMIN_TOKEN: process.env.ADMIN_TOKEN ? "[SET]" : "[NOT SET]",
+  ADMIN_TOKEN: process.env.ADMIN_TOKEN ? "******" : "[NOT SET]",
   CORS_ORIGIN: process.env.CORS_ORIGIN || "[NOT SET]"
 });
 
 app.use(helmet());
+
+// Improved CORS configuration
 const corsOrigin = process.env.CORS_ORIGIN || "*";
-const allowedOrigins = corsOrigin === "*" 
-  ? undefined  // 允许所有来源
-  : new Set(
-      [corsOrigin, "http://localhost:5173", "http://127.0.0.1:5173", "http://[::1]:5173"].filter(Boolean) as string[]
-    );
+const allowedOrigins = corsOrigin === "*"
+  ? null // Allow all if *
+  : [corsOrigin, "http://localhost:5173", "http://127.0.0.1:5173", "http://[::1]:5173"].filter(Boolean);
 
 app.use(
   cors({
-    origin: allowedOrigins === undefined 
-      ? true  // 允许所有来源
-      : (origin, callback) => {
-          if (!origin || allowedOrigins.has(origin)) callback(null, true);
-          else callback(new Error("CORS not allowed"));
-        },
+    origin: function (origin, callback) {
+      // Allow requests with no origin (like mobile apps or curl requests)
+      if (!origin) return callback(null, true);
+
+      if (!allowedOrigins || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        logger.warn(`CORS blocked origin: ${origin}`);
+        callback(new Error("CORS not allowed"));
+      }
+    },
     credentials: true,
   })
 );

@@ -113,20 +113,24 @@ const Admin = () => {
     const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
     const maxVal = Math.max(...data.map(d => (d[metricType] as number) || 0), 1);
 
-    const height = 256;
-    const width = 1000;
+    // Chart dimensions
+    const height = 256; // h-64 = 16rem = 256px
+    const width = 1000; // ViewBox width
     const padding = 20;
 
+    // Calculate points
     const points = data.map((d, i) => {
       const x = (i / (data.length - 1)) * width;
       const y = height - ((d[metricType] as number || 0) / maxVal) * (height - padding * 2) - padding;
       return { x, y, val: d[metricType], label: d.label };
     });
 
+    // Generate path d attribute
     const pathD = points.length > 1
       ? `M ${points[0].x} ${points[0].y} ` + points.slice(1).map(p => `L ${p.x} ${p.y}`).join(' ')
       : '';
 
+    // Generate area path d attribute (closed path for gradient)
     const areaD = points.length > 1
       ? `${pathD} L ${width} ${height} L 0 ${height} Z`
       : '';
@@ -150,6 +154,7 @@ const Admin = () => {
           className="w-full h-full overflow-visible"
           preserveAspectRatio="none"
         >
+          {/* Defs for gradient */}
           <defs>
             <linearGradient id="chartGradient" x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%" stopColor={metricColor} stopOpacity="0.2" />
@@ -157,6 +162,7 @@ const Admin = () => {
             </linearGradient>
           </defs>
 
+          {/* Grid lines */}
           {[0, 0.25, 0.5, 0.75, 1].map((tick) => (
             <line
               key={tick}
@@ -170,6 +176,7 @@ const Admin = () => {
             />
           ))}
 
+          {/* Area fill */}
           <motion.path
             d={areaD}
             fill="url(#chartGradient)"
@@ -178,6 +185,7 @@ const Admin = () => {
             transition={{ duration: 0.5 }}
           />
 
+          {/* Line path */}
           <motion.path
             d={pathD}
             fill="none"
@@ -190,8 +198,10 @@ const Admin = () => {
             transition={{ duration: 1.5, ease: "easeInOut" }}
           />
 
+          {/* Hover effects */}
           {hoveredIndex !== null && points[hoveredIndex] && (
             <>
+              {/* Vertical line */}
               <line
                 x1={points[hoveredIndex].x}
                 y1={padding}
@@ -202,6 +212,7 @@ const Admin = () => {
                 strokeDasharray="4 4"
                 opacity="0.5"
               />
+              {/* Point circle */}
               <circle
                 cx={points[hoveredIndex].x}
                 cy={points[hoveredIndex].y}
@@ -214,6 +225,7 @@ const Admin = () => {
           )}
         </svg>
 
+        {/* Interactive Overlay */}
         <div className="absolute inset-0 flex">
           {points.map((_, i) => (
             <div
@@ -224,6 +236,7 @@ const Admin = () => {
           ))}
         </div>
 
+        {/* Tooltip */}
         {hoveredIndex !== null && points[hoveredIndex] && (
           <div
             className="absolute pointer-events-none z-10 bg-gray-900 text-white text-xs rounded py-1 px-2 shadow-lg transform -translate-x-1/2 -translate-y-full"
@@ -241,6 +254,7 @@ const Admin = () => {
     );
   };
 
+  // Login page
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-dark-bg">
@@ -318,6 +332,7 @@ const Admin = () => {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-dark-bg p-6">
       <div className="max-w-7xl mx-auto space-y-6">
+        {/* Header */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
             <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
@@ -366,6 +381,7 @@ const Admin = () => {
           </div>
         </div>
 
+        {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -443,6 +459,7 @@ const Admin = () => {
           </motion.div>
         </div>
 
+        {/* Main Chart Section */}
         <div className="bg-white dark:bg-dark-card rounded-xl border border-gray-200 dark:border-dark-border shadow-sm overflow-hidden">
           <div className="p-4 border-b border-gray-200 dark:border-dark-border flex flex-col sm:flex-row justify-between items-center gap-4">
             <h2 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
@@ -484,6 +501,7 @@ const Admin = () => {
           </div>
         </div>
 
+        {/* Detailed Data Table */}
         <div className="bg-white dark:bg-dark-card rounded-xl border border-gray-200 dark:border-dark-border shadow-sm overflow-hidden">
           <div className="p-4 border-b border-gray-200 dark:border-dark-border flex justify-between items-center">
             <h2 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">

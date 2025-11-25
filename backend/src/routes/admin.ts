@@ -9,7 +9,8 @@ router.post("/reload-models", (req, res) => {
   const token = process.env.ADMIN_TOKEN || "";
   console.log("Admin access attempt:", { auth, expected: `Bearer ${token}` }); // 调试日志
   if (auth !== `Bearer ${token}`) {
-    return res.status(403).json({ error: "无权访问" });
+    console.warn("Admin auth failed:", { received: auth, expectedTokenLength: token.length });
+    return res.status(403).json({ error: "无权访问: Token mismatch" });
   }
   try {
     loadModels();
@@ -47,10 +48,15 @@ router.get("/metrics", (req, res) => {
   if (auth !== `Bearer ${token}`) {
     return res.status(403).json({ error: "无权访问" });
   }
-  const range = (req.query.range as string) || "24h";
-  const m = getMetrics(range as any);
-  const series = getSeries(range as any);
-  res.json({ ...m, series });
+  try {
+    const range = (req.query.range as string) || "24h";
+    const m = getMetrics();
+    const series = getSeries(range as any);
+    res.json({ ...m, range, series });
+  } catch (error) {
+    console.error("Error in /metrics:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
 });
 
 export default router;

@@ -6,21 +6,15 @@ type Model = { id: string; name: string };
 export default function Sidebar() {
   const { chats, currentChatId, createChat, setCurrentChat } = useChatStore();
   const [models, setModels] = useState<Model[]>([]);
-  const base = (() => {
-    const env = import.meta.env.VITE_BACKEND_BASE as string | undefined;
-    if (env) return env;
-    return window.location.origin;
-  })();
-
   useEffect(() => {
-    fetch(`${base}/api/models`)
+    fetch(`/api/models`)
       .then(async (r) => {
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
         return r.json();
       })
       .then(setModels)
       .catch(console.error);
-  }, [base]);
+  }, []);
 
   const handleNewChat = () => {
     const currentChat = chats.find((c) => c.id === currentChatId);
@@ -50,9 +44,8 @@ export default function Sidebar() {
         {chats.map((chat) => (
           <div
             key={chat.id}
-            className={`group p-2 rounded border border-gray-200 dark:border-dark-border ${
-              currentChatId === chat.id ? "bg-gray-100 dark:bg-gray-800" : "bg-white dark:bg-dark-card"
-            }`}
+            className={`group p-2 rounded border border-gray-200 dark:border-dark-border ${currentChatId === chat.id ? "bg-gray-100 dark:bg-gray-800" : "bg-white dark:bg-dark-card"
+              }`}
           >
             <div className="flex items-center gap-2">
               <button className="flex-1 text-left font-medium" onClick={() => setCurrentChat(chat.id)}>

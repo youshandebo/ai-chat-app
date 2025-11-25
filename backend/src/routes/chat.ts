@@ -2,6 +2,7 @@ import express from "express";
 import { callModelAPI } from "../services/modelService";
 import { transformMessages } from "../utils/transform";
 import { getModelConfig } from "../config/models";
+import { logCall, logError } from "../services/metrics";
 
 const router = express.Router();
 
@@ -46,11 +47,17 @@ router.post("/chat/:modelId", async (req, res) => {
       });
       res.write("data: [DONE]\n\n");
       res.end();
+      // Record successful API call
+      logCall();
     } else {
       const result = await callModelAPI(useModel, transformed, useApiKey);
       res.json(result || { content: "" });
+      // Record successful API call
+      logCall();
     }
   } catch (e: any) {
+    // Record error
+    logError();
     const m = String(e?.message || "").match(/HTTP (\d{3})/);
     const sc = m ? parseInt(m[1], 10) : 500;
     res.status(sc).json({ error: `模型调用失败: ${e.message}` });

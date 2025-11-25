@@ -10,7 +10,16 @@ let maxActive = 0;
 let maxHistory: { ts: number; value: number }[] = [];
 let calls: number[] = [];
 let errors: number[] = [];
-let visitors: Record<string, Set<string>> = {};
+// New structure: log of all visits with timestamp
+let visitorLog: { ts: number; ip: string }[] = [];
+
+function persist() {
+  try {
+    const obj = { active, maxActive, maxHistory, calls, errors, visitorLog };
+    fs.mkdirSync(path.dirname(dataPath), { recursive: true });
+    fs.writeFileSync(dataPath, JSON.stringify(obj));
+  } catch { }
+}
 
 function ensureLoaded() {
   try {
@@ -22,111 +31,118 @@ function ensureLoaded() {
       maxHistory = Array.isArray(obj.maxHistory) ? obj.maxHistory : [];
       calls = Array.isArray(obj.calls) ? obj.calls : [];
       errors = Array.isArray(obj.errors) ? obj.errors : [];
-      const v: Record<string, string[]> = obj.visitors || {};
-      visitors = Object.fromEntries(Object.entries(v).map(([k, arr]) => [k, new Set(arr || [])]));
-    }
-  } catch {}
-}
 
-function persist() {
-  try {
-    const serializedVisitors: Record<string, string[]> = Object.fromEntries(
-      Object.entries(visitors).map(([k, set]) => [k, Array.from(set)])
-    );
-    const obj = { active, maxActive, maxHistory, calls, errors, visitors: serializedVisitors };
-    fs.mkdirSync(path.dirname(dataPath), { recursive: true });
-    fs.writeFileSync(dataPath, JSON.stringify(obj));
-  } catch {}
+      // Migration: Convert old visitors object to visitorLog if needed
+      if (obj.visitors && !obj.visitorLog && typeof obj.visitors === 'object' && !Array.isArray(obj.visitors)) {
+        const oldVisitors: Record<string, string[]> = obj.visitors;
+        visitorLog = [];
+        Object.entries(oldVisitors).forEach(([dateStr, ips]) => {
+          // Parse date string YYYY-MM-DD
+          const [y, m, d] = dateStr.split('-').map(Number);
+          // Set time to noon to be safe
+          const ts = new Date(y, m - 1, d, 12, 0, 0).getTime();
+          if (Array.isArray(ips)) {
+            ips.forEach(ip => visitorLog.push({ ts, ip }));
+          }
+        });
+        // Persist immediately after migration
+        persist();
+      } else {
+        visitorLog = Array.isArray(obj.visitorLog) ? obj.visitorLog : [];
+      }
+    }
+  } catch { }
 }
 
 ensureLoaded();
 
-export function recordStart(ip: string) {
-  active += 1;
-  if (active > maxActive) {
-    maxActive = active;
-    maxHistory.push({ ts: Date.now(), value: maxActive });
-  }
-  const d = new Date();
-  const ds = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-  if (!visitors[ds]) visitors[ds] = new Set();
-  if (ip) visitors[ds].add(ip);
-}
-
-export function recordCall() {
+export function logCall() {
   calls.push(Date.now());
-}
-
-export function recordFinish(status: number) {
-  active = Math.max(0, active - 1);
-  if (status >= 400) errors.push(Date.now());
+  // Keep last 10000 calls
+  if (calls.length > 10000) calls.shift();
   persist();
 }
 
-function rangeMs(r: Range) {
-  if (r === "24h") return 24 * 60 * 60 * 1000;
-  if (r === "7d") return 7 * 24 * 60 * 60 * 1000;
-  if (r === "30d") return 30 * 24 * 60 * 60 * 1000;
-  return 365 * 24 * 60 * 60 * 1000;
+export function logError() {
+  errors.push(Date.now());
+  if (errors.length > 10000) errors.shift();
+  persist();
 }
 
-export function getMetrics(r: Range) {
-  const now = Date.now();
-  const since = now - rangeMs(r);
-  const callsCount = calls.filter((t) => t >= since).length;
-  const errorsCount = errors.filter((t) => t >= since).length;
-  const maxInRange = maxHistory.filter((h) => h.ts >= since).reduce((m, h) => Math.max(m, h.value), 0);
-  const days: string[] = [];
-  for (let i = 0; i <= Math.ceil(rangeMs(r) / (24 * 60 * 60 * 1000)); i++) {
-    const d = new Date(since + i * 24 * 60 * 60 * 1000);
-    const ds = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-    days.push(ds);
-  }
-  let visitorsCount = 0;
-  let totalUniqueVisitors = 0;
-  const seen = new Set<string>();
-  const seenAll = new Set<string>();
-  for (const ds of days) {
-    const set = visitors[ds];
-    if (set) {
-      for (const ip of set) {
-        if (!seen.has(ip)) { seen.add(ip); visitorsCount += 1; }
-        if (!seenAll.has(ip)) { seenAll.add(ip); totalUniqueVisitors += 1; }
-      }
-    }
-  }
-  return { range: r, active, maxConcurrency: Math.max(maxInRange, active), calls: callsCount, errors: errorsCount, visitors: visitorsCount, totalUniqueVisitors };
+export function logVisit(ip: string) {
+  // Log every visit with timestamp
+  visitorLog.push({ ts: Date.now(), ip });
+  // Keep last 50000 visits to avoid unlimited growth
+  if (visitorLog.length > 50000) visitorLog.shift();
+  persist();
 }
 
-export function metricsMiddleware(req: any, res: any, next: any) {
-  recordStart(req.ip || "");
-  const p = String(req.path || "");
-  if (p.startsWith("/chat")) recordCall();
-  res.on("finish", () => { recordFinish(res.statusCode || 0); });
-  next();
+export function updateActive(count: number) {
+  active = count;
+  if (count > maxActive) {
+    maxActive = count;
+  }
+  maxHistory.push({ ts: Date.now(), value: count });
+  // Keep last 1000 history points
+  if (maxHistory.length > 1000) maxHistory.shift();
+  persist();
+}
+
+export function getMetrics() {
+  // Calculate total unique visitors from the log
+  const uniqueIPs = new Set(visitorLog.map(v => v.ip));
+
+  return {
+    visitors: uniqueIPs.size, // Total unique visitors ever
+    totalUniqueVisitors: uniqueIPs.size,
+    maxConcurrency: maxActive,
+    calls: calls.length,
+    errors: errors.length
+  };
 }
 
 function bucketize(range: Range) {
   const now = Date.now();
-  const ms = rangeMs(range);
-  const start = now - ms;
-  const buckets: { label: string; from: number; to: number }[] = [];
+  const buckets: { from: number; to: number; label: string }[] = [];
+
   if (range === "24h") {
-    for (let i = 0; i < 24; i++) {
-      const from = start + i * 60 * 60 * 1000;
-      const to = from + 60 * 60 * 1000;
-      const d = new Date(from);
-      const label = `${String(d.getHours()).padStart(2, "0")}:00`;
-      buckets.push({ label, from, to });
+    // Last 24 hours, hourly buckets
+    for (let i = 23; i >= 0; i--) {
+      const from = now - (i + 1) * 3600 * 1000;
+      const to = now - i * 3600 * 1000;
+      const date = new Date(from);
+      buckets.push({ from, to, label: `${date.getHours()}:00` });
     }
-  } else {
-    const days = Math.ceil(ms / (24 * 60 * 60 * 1000));
-    for (let i = 0; i < days; i++) {
-      const from = start + i * 24 * 60 * 60 * 1000;
-      const to = from + 24 * 60 * 60 * 1000;
-      const d = new Date(from);
-      const label = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-      buckets.push({ label, from, to });
+  } else if (range === "7d") {
+    // Last 7 days, daily buckets
+    for (let i = 6; i >= 0; i--) {
+      const from = now - (i + 1) * 24 * 3600 * 1000;
+      const to = now - i * 24 * 3600 * 1000;
+      const date = new Date(from);
+      buckets.push({ from, to, label: `${date.getMonth() + 1}/${date.getDate()}` });
+    }
+  } else if (range === "30d") {
+    // Last 30 days, daily buckets
+    for (let i = 29; i >= 0; i--) {
+      const from = now - (i + 1) * 24 * 3600 * 1000;
+      const to = now - i * 24 * 3600 * 1000;
+      const date = new Date(from);
+      buckets.push({ from, to, label: `${date.getMonth() + 1}/${date.getDate()}` });
+    }
+  } else if (range === "365d") {
+    // Last 12 months, monthly buckets
+    for (let i = 11; i >= 0; i--) {
+      const d = new Date(now);
+      d.setMonth(d.getMonth() - i);
+      d.setDate(1);
+      d.setHours(0, 0, 0, 0);
+      const from = d.getTime();
+
+      const nextMonth = new Date(d);
+      nextMonth.setMonth(nextMonth.getMonth() + 1);
+      const to = nextMonth.getTime();
+
+      buckets.push({ from, to, label: `${d.getFullYear()}/${d.getMonth() + 1}` });
     }
   }
   return buckets;
@@ -134,30 +150,47 @@ function bucketize(range: Range) {
 
 export function getSeries(range: Range) {
   const buckets = bucketize(range);
+
+  // Track cumulative unique visitors across buckets
+  const cumulativeUniqueIPs = new Set<string>();
+
   const series = buckets.map((b) => {
     const callsCount = calls.filter((t) => t >= b.from && t < b.to).length;
     const errorsCount = errors.filter((t) => t >= b.from && t < b.to).length;
-    let visitorsCount = 0;
-    // 查找在当前时间桶内的最大并发数
+
+    // Visits (PV): Total entries in visitorLog for this bucket
+    const visitsCount = visitorLog.filter(v => v.ts >= b.from && v.ts < b.to).length;
+
+    // Unique Visitors (UV) in this bucket
+    const visitorsInBucket = new Set<string>();
+    visitorLog.filter(v => v.ts >= b.from && v.ts < b.to).forEach(v => {
+      visitorsInBucket.add(v.ip);
+      cumulativeUniqueIPs.add(v.ip);
+    });
+
+    // Find max concurrency in bucket
     let maxConcurrencyInBucket = 0;
-    const d = new Date(b.from);
-    const ds = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-    const set = visitors[ds];
-    if (set) visitorsCount = set.size;
-    
-    // 计算时间桶内的最大并发数
     const bucketMaxHistory = maxHistory.filter(h => h.ts >= b.from && h.ts < b.to);
     if (bucketMaxHistory.length > 0) {
       maxConcurrencyInBucket = Math.max(...bucketMaxHistory.map(h => h.value));
     }
-    
-    return { 
-      label: b.label, 
-      calls: callsCount, 
-      errors: errorsCount, 
-      visitors: visitorsCount,
-      maxConcurrency: maxConcurrencyInBucket 
+
+    return {
+      label: b.label,
+      calls: callsCount,
+      errors: errorsCount,
+      visits: visitsCount, // PV
+      visitors: visitorsInBucket.size, // Hourly/Daily UV
+      cumulativeVisitors: cumulativeUniqueIPs.size, // Cumulative UV
+      maxConcurrency: maxConcurrencyInBucket
     };
   });
   return series;
+}
+
+// Middleware to track visits
+export function metricsMiddleware(req: any, res: any, next: any) {
+  const ip = req.ip || req.connection.remoteAddress || 'unknown';
+  logVisit(ip);
+  next();
 }

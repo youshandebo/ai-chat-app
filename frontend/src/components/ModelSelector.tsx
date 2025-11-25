@@ -9,17 +9,12 @@ export default function ModelSelector() {
   const [error, setError] = useState<string>("");
   const { chats, currentChatId, updateChatModel } = useChatStore();
   const current = chats.find((c) => c.id === currentChatId);
-  const base = (() => {
-    const env = import.meta.env.VITE_BACKEND_BASE as string | undefined;
-    if (env) return env;
-    return window.location.origin;
-  })();
   useEffect(() => {
-    fetch(`${base}/api/models`).then(async (r) => {
+    fetch(`/api/models`).then(async (r) => {
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       return r.json();
     }).then(setModels).catch((e) => setError(e.message || String(e)));
-  }, [base]);
+  }, []);
   useEffect(() => {
     if (!currentChatId || models.length === 0) return;
     const ids = new Set(models.map((m) => m.id));

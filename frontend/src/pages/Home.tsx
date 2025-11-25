@@ -1,9 +1,12 @@
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
 
+import InteractiveGrid from "../components/InteractiveGrid";
+
 export default function Home() {
   return (
-    <div className="flex flex-col">
+    <div className="flex flex-col relative">
+      <InteractiveGrid />
       <motion.section
         initial={{ opacity: 0, y: 30 }}
         animate={{ opacity: 1, y: 0 }}

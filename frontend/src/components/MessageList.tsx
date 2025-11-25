@@ -26,9 +26,9 @@ export default function MessageList() {
         return (
           <motion.div
             key={m.id}
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: i * 0.02 }}
+            initial={{ opacity: 0, x: m.role === "user" ? 20 : -20, y: 10 }}
+            animate={{ opacity: 1, x: 0, y: 0 }}
+            transition={{ type: "spring", stiffness: 200, damping: 20 }}
             className={`mb-4 flex ${m.role === "user" ? "justify-end" : "justify-start"}`}
           >
             {m.role !== "user" && (
@@ -38,11 +38,10 @@ export default function MessageList() {
             )}
             <div className="max-w-[72%]">
               <div
-                className={`rounded-2xl px-4 py-2 shadow ${
-                  m.role === "user"
+                className={`rounded-2xl px-4 py-2 shadow ${m.role === "user"
                     ? "bg-primary dark:bg-primary/90 text-white"
                     : "bg-gray-100 dark:bg-dark-card dark:text-dark-text border border-gray-200 dark:border-dark-border"
-                }`}
+                  }`}
               >
                 {(() => {
                   if (m.role === "assistant" && (c.startsWith("<!DOCTYPE") || c.includes("<html"))) {
