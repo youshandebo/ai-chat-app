@@ -1,414 +1,529 @@
-import { useEffect, useMemo, useState } from "react";
-import { motion } from "framer-motion";
+import React, { useEffect, useState } from 'react';
+import { motion } from 'framer-motion';
+import {
+  Activity,
+  Users,
+  Server,
+  AlertCircle,
+  RefreshCw,
+  BarChart3,
+  Table as TableIcon,
+  Lock,
+  LogOut
+} from 'lucide-react';
 
-export default function Admin() {
-  const [token, setToken] = useState<string>(() => {
-    const saved = localStorage.getItem("ADMIN_TOKEN") || "";
-    if (saved) return saved;
-    const envToken = (import.meta.env.VITE_ADMIN_TOKEN as string | undefined) || "";
-    return envToken;
-  });
-  const base = useMemo(() => {
-    const env = import.meta.env.VITE_BACKEND_BASE as string | undefined;
-    if (env) return env;
-    return window.location.origin;
+interface MetricSeries {
+  label: string;
+  calls: number;
+  errors: number;
+  visits: number;
+  visitors: number;
+  cumulativeVisitors: number;
+  maxConcurrency?: number;
+}
+
+interface MetricsData {
+  visitors: number;
+  totalUniqueVisitors: number;
+  maxConcurrency: number;
+  calls: number;
+  errors: number;
+  range: string;
+  series: MetricSeries[];
+}
+
+const Admin = () => {
+  const [metrics, setMetrics] = useState<MetricsData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [timeRange, setTimeRange] = useState<'24h' | '7d' | '30d' | '365d'>('24h');
+  const [selectedMetric, setSelectedMetric] = useState<keyof MetricSeries>('visits');
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [password, setPassword] = useState('');
+  const [loginError, setLoginError] = useState('');
+
+  useEffect(() => {
+    const token = localStorage.getItem('admin_token');
+    if (token) {
+      setIsAuthenticated(true);
+    } else {
+      setLoading(false);
+    }
   }, []);
-  const [status, setStatus] = useState<string>("");
-  const [health, setHealth] = useState<string>("");
-  const [models, setModels] = useState<{ id: string; name: string }[]>([]);
-  const [selected, setSelected] = useState<string>("");
-  const [streaming, setStreaming] = useState<string>("");
-  const [loading, setLoading] = useState<boolean>(false);
-  const [loadErr, setLoadErr] = useState<string>("");
-  const [range, setRange] = useState<string>("24h");
-  const [metrics, setMetrics] = useState<{ visitors: number; totalUniqueVisitors: number; maxConcurrency: number; calls: number; errors: number; range: string; series?: { label: string; calls: number; errors: number; visitors: number; maxConcurrency?: number }[] } | null>(null);
-  const [authed, setAuthed] = useState<boolean>(false);
-  const [selectedMetric, setSelectedMetric] = useState<'calls' | 'errors' | 'visitors' | 'maxConcurrency'>('calls');
 
-  useEffect(() => {
-    localStorage.setItem("ADMIN_TOKEN", token);
-  }, [token]);
+  const handleLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (password) {
+      localStorage.setItem('admin_token', password);
+      setIsAuthenticated(true);
+      setLoginError('');
+    } else {
+      setLoginError('请输入管理员密码');
+    }
+  };
 
-  useEffect(() => {
-    if (!authed) return;
-    fetch(`${base}/api/models`).then(async (r) => {
-      if (!r.ok) throw new Error(`HTTP ${r.status}`);
-      return r.json();
-    }).then((list) => { setModels(list); setSelected(list?.[0]?.id || ""); setLoadErr(""); }).catch((e: any) => { setLoadErr(String(e?.message || e)); });
-  }, [base, authed]);
+  const handleLogout = () => {
+    localStorage.removeItem('admin_token');
+    setIsAuthenticated(false);
+    setMetrics(null);
+  };
 
-  const reloadModels = async () => {
-    setStatus("正在重载...");
+  const fetchMetrics = async () => {
     try {
-      const res = await fetch(`${base}/api/admin/reload-models`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) {
-        const t = await res.text();
-        setStatus(`失败 ${res.status} ${t}`);
-        return;
+      setLoading(true);
+      const token = localStorage.getItem('admin_token');
+      if (!token) {
+        setIsAuthenticated(false);
+        throw new Error('Unauthorized');
       }
-      const data = await res.json();
-      setStatus(data.message || "成功");
-    } catch (e: any) {
-      setStatus(String(e?.message || e));
-    }
-  };
 
-  const checkHealth = async () => {
-    setHealth("检测中...");
-    try {
-      const res = await fetch(`${base}/api/admin/health`, { headers: { Authorization: `Bearer ${token}` } });
-      const data = await res.json();
-      if (!res.ok) return setHealth(`失败 ${res.status} ${data.error || ""}`);
-      setHealth(`正常，模型数 ${data.modelsCount}，CORS ${data.cors || "未设"}`);
-    } catch (e: any) {
-      setHealth(String(e?.message || e));
-    }
-  };
-
-  const enter = async () => {
-    setStatus("验证中...");
-    try {
-      const res = await fetch(`${base}/api/admin/health`, { headers: { Authorization: `Bearer ${token}` } });
-      const data = await res.json();
-      if (!res.ok) { setStatus(`令牌无效 ${res.status} ${data.error || ""}`); return; }
-      setStatus("已进入后台");
-      setAuthed(true);
-      loadMetrics(range);
-    } catch (e: any) {
-      setStatus(String(e?.message || e));
-    }
-  };
-
-  const loadMetrics = async (r: string) => {
-    setRange(r);
-    try {
-      const res = await fetch(`${base}/api/admin/metrics?range=${encodeURIComponent(r)}`, { headers: { Authorization: `Bearer ${token}` } });
-      const data = await res.json();
-      if (!res.ok) { setStatus(`指标失败 ${res.status} ${data.error || ""}`); return; }
-      setMetrics(data);
-    } catch (e: any) { setStatus(String(e?.message || e)); }
-  };
-
-  const testStream = async () => {
-    if (!selected) return;
-    setStreaming("");
-    setLoading(true);
-    try {
-      const payload = {
-        messages: [
-          { role: "user", content: "你好，请用一两句话回答：这是管理面板的流式测试。" }
-        ],
-        stream: true
-      };
-      const res = await fetch(`${base}/api/chat/${selected}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Accept: "text/event-stream" },
-        body: JSON.stringify(payload)
-      });
-      if (!res.ok && res.status !== 200) throw new Error(`HTTP ${res.status}`);
-      const ct = res.headers.get("content-type") || "";
-      if (res.body && ct.includes("text/event-stream")) {
-        const reader = res.body.getReader();
-        const decoder = new TextDecoder();
-        let buf = "";
-        for (;;) {
-          const { value, done } = await reader.read();
-          if (done) break;
-          buf += decoder.decode(value, { stream: true });
-          const lines = buf.split("\n");
-          buf = lines.pop() || "";
-          for (const line of lines) {
-            if (line.startsWith("data: ")) {
-              const data = line.slice(6);
-              if (data === "[DONE]") { setLoading(false); }
-              else {
-                try {
-                  const parsed = JSON.parse(data);
-                  const chunk = parsed.content || parsed.choices?.[0]?.delta?.content || "";
-                  if (chunk) setStreaming((s) => s + chunk);
-                } catch {}
-              }
-            }
-          }
+      const res = await fetch(`/api/admin/metrics?range=${timeRange}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
         }
-      } else {
-        const text = await res.text();
-        setStreaming(text);
+      });
+
+      if (!res.ok) {
+        if (res.status === 403) {
+          setLoginError('密码错误，请重新登录');
+          handleLogout();
+        }
+        throw new Error('Failed to fetch metrics');
       }
-    } catch (e: any) {
-      setStreaming(e?.message || String(e));
+
+      const data = await res.json();
+      console.log('Metrics data:', data);
+      setMetrics(data);
+      setError('');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred');
+      console.error('Fetch error:', err);
     } finally {
       setLoading(false);
     }
   };
 
-  const Chart = ({ data, metricType }: { data: { label: string; value: number }[]; metricType: 'calls' | 'errors' | 'visitors' | 'maxConcurrency' }) => {
-    const w = 640; const h = 220; const p = 40; // 增加左边距以显示Y轴标签
-    const xs = data.map((_, i) => p + i * ((w - 2 * p) / Math.max(1, data.length - 1)));
-    const maxY = Math.max(1, ...data.map(d => d.value || 0));
-    const y = (v: number) => h - p - v * ((h - 2 * p) / maxY);
-    const path = data.map((d, i) => `${i === 0 ? "M" : "L"}${xs[i]},${y(d.value || 0)}`).join(" ");
-    
-    // 添加状态以跟踪悬停的点
-    const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
-    
-    // 生成Y轴刻度
-    const yTicks = [];
-    for (let i = 0; i <= 5; i++) {
-      const value = Math.round((maxY / 5) * i);
-      yTicks.push({ value, y: y(value) });
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetchMetrics();
     }
-    
-    // 获取当前指标类型的名称
-    const metricName = metricType === 'calls' ? '调用' : 
-                      metricType === 'errors' ? '错误' : 
-                      metricType === 'visitors' ? '访客' : '并发';
-    
-    // 设置颜色
-    const metricColor = metricType === 'calls' ? '#6366F1' : 
-                       metricType === 'errors' ? '#EF4444' : 
-                       metricType === 'visitors' ? '#10B981' : '#F59E0B';
-    
+  }, [timeRange, isAuthenticated]);
+
+  const Chart = ({ data, metricType }: { data: MetricSeries[], metricType: keyof MetricSeries }) => {
+    const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
+    const maxVal = Math.max(...data.map(d => (d[metricType] as number) || 0), 1);
+
+    const height = 256;
+    const width = 1000;
+    const padding = 20;
+
+    const points = data.map((d, i) => {
+      const x = (i / (data.length - 1)) * width;
+      const y = height - ((d[metricType] as number || 0) / maxVal) * (height - padding * 2) - padding;
+      return { x, y, val: d[metricType], label: d.label };
+    });
+
+    const pathD = points.length > 1
+      ? `M ${points[0].x} ${points[0].y} ` + points.slice(1).map(p => `L ${p.x} ${p.y}`).join(' ')
+      : '';
+
+    const areaD = points.length > 1
+      ? `${pathD} L ${width} ${height} L 0 ${height} Z`
+      : '';
+
+    const metricName = metricType === 'calls' ? '调用' :
+      metricType === 'errors' ? '错误' :
+        metricType === 'visits' ? '访问量(PV)' :
+          metricType === 'visitors' ? '独立访客(UV)' :
+            metricType === 'cumulativeVisitors' ? '累计访客' : '并发';
+
+    const metricColor = metricType === 'calls' ? '#6366F1' :
+      metricType === 'errors' ? '#EF4444' :
+        metricType === 'visits' ? '#8B5CF6' :
+          metricType === 'visitors' ? '#10B981' :
+            metricType === 'cumulativeVisitors' ? '#059669' : '#F59E0B';
+
     return (
-      <div className="relative">
-        <svg width={w} height={h} className="w-full">
-          {/* X轴和Y轴 */}
-          <line x1={p} y1={h - p} x2={w - p} y2={h - p} stroke="#ddd" />
-          <line x1={p} y1={p} x2={p} y2={h - p} stroke="#ddd" />
-          
-          {/* Y轴刻度和标签 */}
-          {yTicks.map((tick, i) => (
-            <g key={`ytick-${i}`}>
-              <line x1={p - 5} y1={tick.y} x2={p} y2={tick.y} stroke="#ddd" />
-              <text x={p - 10} y={tick.y + 4} textAnchor="end" fontSize="10" fill="#666">{tick.value}</text>
-            </g>
+      <div className="h-64 w-full relative group" onMouseLeave={() => setHoveredIndex(null)}>
+        <svg
+          viewBox={`0 0 ${width} ${height}`}
+          className="w-full h-full overflow-visible"
+          preserveAspectRatio="none"
+        >
+          <defs>
+            <linearGradient id="chartGradient" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor={metricColor} stopOpacity="0.2" />
+              <stop offset="100%" stopColor={metricColor} stopOpacity="0" />
+            </linearGradient>
+          </defs>
+
+          {[0, 0.25, 0.5, 0.75, 1].map((tick) => (
+            <line
+              key={tick}
+              x1="0"
+              y1={height - tick * (height - padding * 2) - padding}
+              x2={width}
+              y2={height - tick * (height - padding * 2) - padding}
+              stroke="currentColor"
+              strokeOpacity="0.1"
+              strokeDasharray="4 4"
+            />
           ))}
-          
-          {/* X轴标签（只显示部分标签以避免拥挤） */}
-          {data.filter((_, i) => i % Math.ceil(data.length / 5) === 0).map((d, i) => {
-            const actualIndex = i * Math.ceil(data.length / 5);
-            return (
-              <g key={`xlabel-${actualIndex}`}>
-                <line x1={xs[actualIndex]} y1={h - p} x2={xs[actualIndex]} y2={h - p + 5} stroke="#ddd" />
-                <text 
-                  x={xs[actualIndex]} 
-                  y={h - p + 20} 
-                  textAnchor="middle" 
-                  fontSize="10" 
-                  fill="#666"
-                  transform={`rotate(-45, ${xs[actualIndex]}, ${h - p + 20})`}
-                >
-                  {d.label}
-                </text>
-              </g>
-            );
-          })}
-          
-          <motion.path d={path} fill="none" stroke={metricColor} strokeWidth={2} initial={{ pathLength: 0 }} animate={{ pathLength: 1 }} transition={{ duration: 0.6 }} />
-          {data.map((d, i) => (
-            <g key={`data-${i}`}>
-              <circle 
-                cx={xs[i]} 
-                cy={y(d.value || 0)} 
-                r={hoveredIndex === i ? 6 : 3} 
+
+          <motion.path
+            d={areaD}
+            fill="url(#chartGradient)"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.5 }}
+          />
+
+          <motion.path
+            d={pathD}
+            fill="none"
+            stroke={metricColor}
+            strokeWidth="3"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            initial={{ pathLength: 0, opacity: 0 }}
+            animate={{ pathLength: 1, opacity: 1 }}
+            transition={{ duration: 1.5, ease: "easeInOut" }}
+          />
+
+          {hoveredIndex !== null && points[hoveredIndex] && (
+            <>
+              <line
+                x1={points[hoveredIndex].x}
+                y1={padding}
+                x2={points[hoveredIndex].x}
+                y2={height}
+                stroke={metricColor}
+                strokeWidth="1"
+                strokeDasharray="4 4"
+                opacity="0.5"
+              />
+              <circle
+                cx={points[hoveredIndex].x}
+                cy={points[hoveredIndex].y}
+                r="6"
                 fill={metricColor}
-                className="cursor-pointer hover:opacity-80 transition-all"
-                onMouseEnter={() => setHoveredIndex(i)}
-                onMouseLeave={() => setHoveredIndex(null)}
-              >
-                <title>{`${d.label} ${metricName} ${d.value || 0}`}</title>
-              </circle>
-              {hoveredIndex === i && (
-                <text 
-                  x={xs[i]} 
-                  y={y(d.value || 0) - 10} 
-                  textAnchor="middle" 
-                  fontSize="12" 
-                  fill={metricColor}
-                  className="font-medium"
-                >
-                  {d.value || 0}
-                </text>
-              )}
-            </g>
-          ))}
+                stroke="white"
+                strokeWidth="2"
+              />
+            </>
+          )}
         </svg>
-        {hoveredIndex !== null && data[hoveredIndex] && (
-          <div className="absolute top-0 left-0 mt-2 text-sm text-gray-600 dark:text-dark-text/80 bg-white dark:bg-dark-card p-2 rounded border border-gray-200 dark:border-dark-border shadow-sm">
-            <div>{data[hoveredIndex].label}</div>
-            <div>{metricName}: {data[hoveredIndex].value || 0}</div>
+
+        <div className="absolute inset-0 flex">
+          {points.map((_, i) => (
+            <div
+              key={i}
+              className="flex-1 hover:bg-transparent cursor-crosshair"
+              onMouseEnter={() => setHoveredIndex(i)}
+            />
+          ))}
+        </div>
+
+        {hoveredIndex !== null && points[hoveredIndex] && (
+          <div
+            className="absolute pointer-events-none z-10 bg-gray-900 text-white text-xs rounded py-1 px-2 shadow-lg transform -translate-x-1/2 -translate-y-full"
+            style={{
+              left: `${(hoveredIndex / (points.length - 1)) * 100}%`,
+              top: `${(points[hoveredIndex].y / height) * 100}%`,
+              marginTop: '-10px'
+            }}
+          >
+            <div className="font-bold whitespace-nowrap">{points[hoveredIndex].label}</div>
+            <div className="whitespace-nowrap">{metricName}: {points[hoveredIndex].val}</div>
           </div>
         )}
       </div>
     );
   };
 
-  return (
-    <div className="max-w-3xl mx-auto p-6 bg-white dark:bg-dark-card border border-gray-200 dark:border-dark-border rounded-lg min-h-[60vh]">
-      <h2 className="text-2xl font-bold mb-4">管理面板</h2>
-      {!authed ? (
-        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
-          <input
-            className="w-full border border-gray-200 dark:border-dark-border rounded px-3 py-2 bg-white dark:bg-dark-card"
-            type="password"
-            value={token}
-            onChange={(e) => setToken(e.target.value)}
-            placeholder="输入后端 ADMIN_TOKEN"
-          />
-          <div className="flex items-center gap-3">
-            <button className="px-4 py-2 rounded bg-primary text-white hover:bg-indigo-400 transition-transform hover:scale-105 shadow" onClick={enter}>进入后台</button>
-            {status && <span className="text-sm text-gray-600 dark:text-dark-text/80">{status}</span>}
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-dark-bg">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-white dark:bg-dark-card p-8 rounded-xl border border-gray-200 dark:border-dark-border shadow-lg max-w-md w-full"
+        >
+          <div className="text-center mb-6">
+            <Lock className="w-12 h-12 text-primary mx-auto mb-4" />
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">管理员登录</h1>
+            <p className="text-gray-500 dark:text-gray-400 text-sm mt-2">请输入管理员密码访问后台</p>
           </div>
+
+          <form onSubmit={handleLogin} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                管理员密码
+              </label>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 dark:border-dark-border rounded-lg bg-white dark:bg-dark-bg text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"
+                placeholder="请输入密码"
+                autoFocus
+              />
+            </div>
+
+            {loginError && (
+              <div className="text-red-600 dark:text-red-400 text-sm flex items-center gap-2">
+                <AlertCircle className="w-4 h-4" />
+                {loginError}
+              </div>
+            )}
+
+            <button
+              type="submit"
+              className="w-full px-4 py-2 bg-primary text-white rounded-lg hover:bg-indigo-600 transition-colors font-medium"
+            >
+              登录
+            </button>
+          </form>
+
+          <p className="text-xs text-gray-500 dark:text-gray-400 text-center mt-6">
+            提示：请输入管理员令牌
+          </p>
         </motion.div>
-      ) : (
-        <div className="space-y-4">
-          <div className="flex items-center gap-3">
-            <button className="px-4 py-2 rounded border border-gray-200 dark:border-dark-border bg-white dark:bg-dark-card hover:bg-gray-100" onClick={checkHealth}>后台状态</button>
-            {health && <span className="text-sm text-gray-600 dark:text-dark-text/80">{health}</span>}
-            <button className="px-4 py-2 rounded bg-primary text-white hover:bg-indigo-400 transition-transform hover:scale-105 shadow" onClick={reloadModels}>重载模型配置</button>
+      </div>
+    );
+  }
+
+  if (loading && !metrics) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-dark-bg">
+        <div className="animate-spin rounded-full h-12 w-12 border-4 border-primary border-t-transparent"></div>
+      </div>
+    );
+  }
+
+  if (error && !metrics) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-dark-bg">
+        <div className="text-center">
+          <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+          <p className="text-red-600 dark:text-red-400 mb-4">{error}</p>
+          <button onClick={fetchMetrics} className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-indigo-600 transition-colors">
+            重试
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50 dark:bg-dark-bg p-6">
+      <div className="max-w-7xl mx-auto space-y-6">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+              <Activity className="w-6 h-6 text-primary" />
+              系统监控
+            </h1>
+            <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">
+              实时监控系统运行状态和用户访问数据
+            </p>
           </div>
-          <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="mt-2">
-            <div className="p-4 rounded border border-gray-200 dark:border-dark-border">
-              <div className="text-sm text-gray-600 dark:text-dark-text/80">可用模型</div>
-              <div className="mt-2 grid grid-cols-2 gap-2">
-                {models.map((m, i) => (
-                  <motion.div key={m.id} initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: i * 0.05 }} className="px-3 py-2 rounded bg-gray-100 dark:bg-dark-card border border-gray-200 dark:border-dark-border">
-                    {m.name}
-                  </motion.div>
-                ))}
-              </div>
-              {!models.length && (
-                <div className="mt-2 text-sm text-red-600">模型列表获取失败：{loadErr || "空列表"}</div>
-              )}
-              <div className="mt-4 flex items-center gap-3">
-                <select className="border border-gray-200 dark:border-dark-border rounded p-2 bg-white dark:bg-dark-card" value={selected} onChange={(e) => setSelected(e.target.value)}>
-                  {models.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
-                </select>
-                <button className="px-4 py-2 rounded bg-primary text-white hover:bg-indigo-400 transition-transform hover:scale-105 shadow" onClick={testStream} disabled={loading || !selected}>
-                  {loading ? "生成中..." : "测试流式生成"}
+
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 bg-white dark:bg-dark-card p-1 rounded-lg border border-gray-200 dark:border-dark-border shadow-sm">
+              {(['24h', '7d', '30d', '365d'] as const).map((range) => (
+                <button
+                  key={range}
+                  onClick={() => setTimeRange(range)}
+                  className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${timeRange === range
+                    ? 'bg-primary text-white shadow-sm'
+                    : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-dark-bg'
+                    }`}
+                >
+                  {range === '24h' ? '24小时' :
+                    range === '7d' ? '7天' :
+                      range === '30d' ? '30天' : '1年'}
                 </button>
+              ))}
+              <div className="w-px h-6 bg-gray-200 dark:bg-dark-border mx-1" />
+              <button
+                onClick={fetchMetrics}
+                className="p-1.5 text-gray-500 hover:text-primary hover:bg-gray-100 dark:hover:bg-dark-bg rounded-md transition-colors"
+                title="刷新数据"
+              >
+                <RefreshCw className="w-4 h-4" />
+              </button>
+            </div>
+
+            <button
+              onClick={handleLogout}
+              className="px-3 py-1.5 text-sm font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors flex items-center gap-2"
+              title="退出登录"
+            >
+              <LogOut className="w-4 h-4" />
+              退出
+            </button>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-white dark:bg-dark-card p-4 rounded-xl border border-gray-200 dark:border-dark-border shadow-sm"
+          >
+            <div className="flex justify-between items-start">
+              <div>
+                <p className="text-sm font-medium text-gray-500 dark:text-gray-400">总访客 (UV)</p>
+                <h3 className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
+                  {metrics?.totalUniqueVisitors?.toLocaleString() || 0}
+                </h3>
               </div>
-              {streaming && (
-                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-3 p-3 rounded bg-gray-50 dark:bg-dark-card border border-gray-200 dark:border-dark-border whitespace-pre-wrap">
-                  {streaming}
-                </motion.div>
-              )}
+              <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg">
+                <Users className="w-5 h-5 text-green-600 dark:text-green-400" />
+              </div>
             </div>
           </motion.div>
-          <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="mt-2">
-            <div className="p-4 rounded border border-gray-200 dark:border-dark-border">
-              <div className="flex flex-wrap gap-2 mb-2">
-                {[
-                  { k: "24h", t: "24小时" },
-                  { k: "7d", t: "一周" },
-                  { k: "30d", t: "一月" },
-                  { k: "365d", t: "一年" },
-                ].map((opt) => (
-                  <button key={opt.k} className={`px-3 py-2 rounded border ${range === opt.k ? "bg-primary text-white" : "bg-white dark:bg-dark-card"}`} onClick={() => loadMetrics(opt.k)}>
-                    {opt.t}
-                  </button>
-                ))}
+
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+            className="bg-white dark:bg-dark-card p-4 rounded-xl border border-gray-200 dark:border-dark-border shadow-sm"
+          >
+            <div className="flex justify-between items-start">
+              <div>
+                <p className="text-sm font-medium text-gray-500 dark:text-gray-400">最大并发</p>
+                <h3 className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
+                  {metrics?.maxConcurrency?.toLocaleString() || 0}
+                </h3>
               </div>
-              {metrics && (
-                <div className="space-y-3">
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
-                      <thead>
-                        <tr className="text-left border-b border-gray-200 dark:border-dark-border">
-                          <th className="p-2">统计项</th>
-                          <th className="p-2">数值</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        <tr className="border-b border-gray-100 dark:border-dark-border/50">
-                          <td className="p-2">时间范围</td>
-                          <td className="p-2">{metrics.range === '24h' ? '24小时' : metrics.range === '7d' ? '一周' : metrics.range === '30d' ? '一月' : '一年'}</td>
-                        </tr>
-                        <tr className="border-b border-gray-100 dark:border-dark-border/50">
-                          <td className="p-2">访客数（该周期）</td>
-                          <td className="p-2">{metrics.visitors}</td>
-                        </tr>
-                        <tr className="border-b border-gray-100 dark:border-dark-border/50">
-                          <td className="p-2">总访客数（去重）</td>
-                          <td className="p-2">{metrics.totalUniqueVisitors}</td>
-                        </tr>
-                        <tr className="border-b border-gray-100 dark:border-dark-border/50">
-                          <td className="p-2">并发峰值</td>
-                          <td className="p-2">{metrics.maxConcurrency}</td>
-                        </tr>
-                        <tr className="border-b border-gray-100 dark:border-dark-border/50">
-                          <td className="p-2">API调用数</td>
-                          <td className="p-2">{metrics.calls}</td>
-                        </tr>
-                        <tr>
-                          <td className="p-2">报错数</td>
-                          <td className="p-2">{metrics.errors}</td>
-                        </tr>
-                      </tbody>
-                    </table>
-                  </div>
-                  {Array.isArray(metrics.series) && metrics.series.length > 0 && (
-                    <div className="mt-2 space-y-3">
-                      <div className="overflow-x-auto">
-                        <table className="w-full text-sm">
-                          <thead>
-                            <tr className="text-left">
-                              <th className="p-2">时间</th>
-                              <th className="p-2">API调用</th>
-                              <th className="p-2">报错</th>
-                              <th className="p-2">访客</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {metrics.series.map((s, idx) => (
-                              <tr key={`row-${idx}`} className="odd:bg-gray-50 dark:odd:bg-dark-bg/40">
-                                <td className="p-2">{s.label}</td>
-                                <td className="p-2">{s.calls}</td>
-                                <td className="p-2">{s.errors}</td>
-                                <td className="p-2">{s.visitors}</td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                      <div className="flex gap-2 mb-2 flex-wrap">
-                        <span className="text-sm text-gray-600 dark:text-dark-text/80">图表数据:</span>
-                        {['calls', 'errors', 'visitors', 'maxConcurrency'].map((metric) => (
-                          <label key={metric} className="flex items-center gap-1">
-                            <input
-                              type="radio"
-                              name="chartMetric"
-                              value={metric}
-                              checked={selectedMetric === metric}
-                              onChange={(e) => setSelectedMetric(e.target.value as any)}
-                            />
-                            <span className="text-sm">
-                              {metric === 'calls' ? '调用数' : 
-                               metric === 'errors' ? '错误数' : 
-                               metric === 'visitors' ? '访客数' : '并发峰值'}
-                            </span>
-                          </label>
-                        ))}
-                      </div>
-                      <Chart 
-                        key={`${range}-${selectedMetric}`} // 添加selectedMetric到key中，确保在切换指标时重新渲染
-                        data={metrics.series.map(s => ({ 
-                          label: s.label, 
-                          value: s[selectedMetric] || 0
-                        }))}
-                        metricType={selectedMetric}
-                      />
-                    </div>
-                  )}
-                </div>
-              )}
+              <div className="p-2 bg-yellow-100 dark:bg-yellow-900/30 rounded-lg">
+                <Activity className="w-5 h-5 text-yellow-600 dark:text-yellow-400" />
+              </div>
+            </div>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            className="bg-white dark:bg-dark-card p-4 rounded-xl border border-gray-200 dark:border-dark-border shadow-sm"
+          >
+            <div className="flex justify-between items-start">
+              <div>
+                <p className="text-sm font-medium text-gray-500 dark:text-gray-400">API 调用</p>
+                <h3 className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
+                  {metrics?.calls?.toLocaleString() || 0}
+                </h3>
+              </div>
+              <div className="p-2 bg-indigo-100 dark:bg-indigo-900/30 rounded-lg">
+                <Server className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+              </div>
+            </div>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+            className="bg-white dark:bg-dark-card p-4 rounded-xl border border-gray-200 dark:border-dark-border shadow-sm"
+          >
+            <div className="flex justify-between items-start">
+              <div>
+                <p className="text-sm font-medium text-gray-500 dark:text-gray-400">错误率</p>
+                <h3 className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
+                  {metrics?.calls ? ((metrics.errors / metrics.calls) * 100).toFixed(2) : 0}%
+                </h3>
+              </div>
+              <div className="p-2 bg-red-100 dark:bg-red-900/30 rounded-lg">
+                <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400" />
+              </div>
             </div>
           </motion.div>
         </div>
-      )}
+
+        <div className="bg-white dark:bg-dark-card rounded-xl border border-gray-200 dark:border-dark-border shadow-sm overflow-hidden">
+          <div className="p-4 border-b border-gray-200 dark:border-dark-border flex flex-col sm:flex-row justify-between items-center gap-4">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+              <BarChart3 className="w-5 h-5 text-gray-500" />
+              趋势分析
+            </h2>
+
+            <div className="flex flex-wrap items-center gap-2">
+              {(['calls', 'errors', 'visits', 'visitors', 'cumulativeVisitors', 'maxConcurrency'] as const).map((metric) => (
+                <label key={metric} className={`flex items-center gap-1 px-3 py-1 rounded cursor-pointer border transition-colors ${selectedMetric === metric ? 'bg-primary/10 border-primary text-primary' : 'border-transparent hover:bg-gray-100 dark:hover:bg-dark-bg'}`}>
+                  <input
+                    type="radio"
+                    name="chartMetric"
+                    value={metric}
+                    checked={selectedMetric === metric}
+                    onChange={(e) => setSelectedMetric(e.target.value as keyof MetricSeries)}
+                    className="hidden"
+                  />
+                  <span className="text-sm font-medium">
+                    {metric === 'calls' ? '调用数' :
+                      metric === 'errors' ? '错误数' :
+                        metric === 'visits' ? '访问量(PV)' :
+                          metric === 'visitors' ? '访客(UV)' :
+                            metric === 'cumulativeVisitors' ? '累计UV' : '并发峰值'}
+                  </span>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          <div className="p-4">
+            {metrics?.series && metrics.series.length > 0 ? (
+              <Chart data={metrics.series} metricType={selectedMetric} />
+            ) : (
+              <div className="h-64 flex items-center justify-center text-gray-400">
+                暂无数据
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="bg-white dark:bg-dark-card rounded-xl border border-gray-200 dark:border-dark-border shadow-sm overflow-hidden">
+          <div className="p-4 border-b border-gray-200 dark:border-dark-border flex justify-between items-center">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+              <TableIcon className="w-5 h-5 text-gray-500" />
+              详细数据
+            </h2>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm text-left">
+              <thead className="bg-gray-50 dark:bg-dark-bg/50 text-gray-500 dark:text-gray-400 font-medium">
+                <tr>
+                  <th className="p-3">时间</th>
+                  <th className="p-3">访问(PV)</th>
+                  <th className="p-3">访客(UV)</th>
+                  <th className="p-3">累计UV</th>
+                  <th className="p-3">API调用</th>
+                  <th className="p-3">报错</th>
+                  <th className="p-3">并发</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200 dark:divide-dark-border">
+                {metrics?.series?.map((s, idx) => (
+                  <tr key={idx} className="hover:bg-gray-50 dark:hover:bg-dark-bg/50 transition-colors">
+                    <td className="p-3 font-medium text-gray-900 dark:text-white">{s.label}</td>
+                    <td className="p-3">{s.visits || 0}</td>
+                    <td className="p-3">{s.visitors}</td>
+                    <td className="p-3">{s.cumulativeVisitors || 0}</td>
+                    <td className="p-3">{s.calls}</td>
+                    <td className={s.errors > 0 ? "p-3 text-red-600 dark:text-red-400 font-medium" : "p-3"}>{s.errors}</td>
+                    <td className="p-3">{s.maxConcurrency || 0}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
     </div>
   );
-}
+};
+
+export default Admin;
