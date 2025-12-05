@@ -18,45 +18,65 @@ function persist() {
     const obj = { active, maxActive, maxHistory, calls, errors, visitorLog };
     fs.mkdirSync(path.dirname(dataPath), { recursive: true });
     fs.writeFileSync(dataPath, JSON.stringify(obj));
-  } catch { }
+  } catch (e) {
+    console.error("Persist failed:", e);
+  }
 }
 
 function ensureLoaded() {
-  try {
-    if (fs.existsSync(dataPath)) {
-      const raw = fs.readFileSync(dataPath, "utf-8");
-      const obj = JSON.parse(raw || "{}");
-      active = obj.active || 0;
-      maxActive = obj.maxActive || 0;
-      maxHistory = Array.isArray(obj.maxHistory) ? obj.maxHistory : [];
-      calls = Array.isArray(obj.calls) ? obj.calls : [];
-      errors = Array.isArray(obj.errors) ? obj.errors : [];
-
-      // Migration: Convert old visitors object to visitorLog if needed
-      if (obj.visitors && !obj.visitorLog && typeof obj.visitors === 'object' && !Array.isArray(obj.visitors)) {
-        const oldVisitors: Record<string, string[]> = obj.visitors;
-        visitorLog = [];
-        Object.entries(oldVisitors).forEach(([dateStr, ips]) => {
-          // Parse date string YYYY-MM-DD
-          const [y, m, d] = dateStr.split('-').map(Number);
-          // Set time to noon to be safe
-          const ts = new Date(y, m - 1, d, 12, 0, 0).getTime();
-          if (Array.isArray(ips)) {
-            ips.forEach(ip => visitorLog.push({ ts, ip }));
-          }
-        });
-        // Persist immediately after migration
-        persist();
-      } else {
-        visitorLog = Array.isArray(obj.visitorLog) ? obj.visitorLog : [];
-      }
+  console.log("Loading metrics from:", dataPath);
+  if (fs.existsSync(dataPath)) {
+    const raw = fs.readFileSync(dataPath, "utf-8");
+    let obj;
+    try {
+      obj = JSON.parse(raw || "{}");
+    } catch (e) {
+      console.error("Failed to parse metrics.json, resetting to empty defaults", e);
+      obj = {};
     }
-  } catch { }
+
+    active = typeof obj.active === 'number' ? obj.active : 0;
+    maxActive = typeof obj.maxActive === 'number' ? obj.maxActive : 0;
+    maxHistory = Array.isArray(obj.maxHistory) ? obj.maxHistory : [];
+    calls = Array.isArray(obj.calls) ? obj.calls : [];
+    errors = Array.isArray(obj.errors) ? obj.errors : [];
+
+    // Migration: Convert old visitors object to visitorLog if needed
+    if (obj.visitors && !obj.visitorLog && typeof obj.visitors === 'object' && !Array.isArray(obj.visitors)) {
+      console.log("Migrating old visitors data...");
+      const oldVisitors: Record<string, string[]> = obj.visitors;
+      visitorLog = [];
+      Object.entries(oldVisitors).forEach(([dateStr, ips]) => {
+        // Parse date string YYYY-MM-DD
+        const [y, m, d] = dateStr.split('-').map(Number);
+        // Set time to noon to be safe
+        const ts = new Date(y, m - 1, d, 12, 0, 0).getTime();
+        if (Array.isArray(ips)) {
+          ips.forEach(ip => visitorLog.push({ ts, ip }));
+        }
+      });
+      // Persist immediately after migration
+      persist();
+    } else {
+      visitorLog = Array.isArray(obj.visitorLog) ? obj.visitorLog : [];
+    }
+  } else {
+    console.log("Metrics file not found, using defaults");
+    // File doesn't exist, ensure defaults
+    active = 0;
+    maxActive = 0;
+    maxHistory = [];
+    calls = [];
+    errors = [];
+    visitorLog = [];
+  }
+  console.log("Metrics loaded. VisitorLog length:", visitorLog?.length);
 }
 
 ensureLoaded();
 
 export function logCall() {
+  if (!calls) calls = [];
   calls.push(Date.now());
   // Keep last 10000 calls
   if (calls.length > 10000) calls.shift();
@@ -64,12 +84,17 @@ export function logCall() {
 }
 
 export function logError() {
+  if (!errors) errors = [];
   errors.push(Date.now());
   if (errors.length > 10000) errors.shift();
   persist();
 }
 
 export function logVisit(ip: string) {
+  if (!visitorLog) {
+    console.error("visitorLog is undefined in logVisit! Re-initializing.");
+    visitorLog = [];
+  }
   // Log every visit with timestamp
   visitorLog.push({ ts: Date.now(), ip });
   // Keep last 50000 visits to avoid unlimited growth
@@ -82,6 +107,7 @@ export function updateActive(count: number) {
   if (count > maxActive) {
     maxActive = count;
   }
+  if (!maxHistory) maxHistory = [];
   maxHistory.push({ ts: Date.now(), value: count });
   // Keep last 1000 history points
   if (maxHistory.length > 1000) maxHistory.shift();
@@ -89,6 +115,10 @@ export function updateActive(count: number) {
 }
 
 export function getMetrics() {
+  if (!visitorLog) {
+    console.error("visitorLog is undefined in getMetrics!");
+    return { visitors: 0, totalUniqueVisitors: 0, maxConcurrency: 0, calls: 0, errors: 0 };
+  }
   // Calculate total unique visitors from the log
   const uniqueIPs = new Set(visitorLog.map(v => v.ip));
 
@@ -96,8 +126,8 @@ export function getMetrics() {
     visitors: uniqueIPs.size, // Total unique visitors ever
     totalUniqueVisitors: uniqueIPs.size,
     maxConcurrency: maxActive,
-    calls: calls.length,
-    errors: errors.length
+    calls: calls?.length || 0,
+    errors: errors?.length || 0
   };
 }
 
@@ -155,22 +185,22 @@ export function getSeries(range: Range) {
   const cumulativeUniqueIPs = new Set<string>();
 
   const series = buckets.map((b) => {
-    const callsCount = calls.filter((t) => t >= b.from && t < b.to).length;
-    const errorsCount = errors.filter((t) => t >= b.from && t < b.to).length;
+    const callsCount = (calls || []).filter((t) => t >= b.from && t < b.to).length;
+    const errorsCount = (errors || []).filter((t) => t >= b.from && t < b.to).length;
 
     // Visits (PV): Total entries in visitorLog for this bucket
-    const visitsCount = visitorLog.filter(v => v.ts >= b.from && v.ts < b.to).length;
+    const visitsCount = (visitorLog || []).filter(v => v.ts >= b.from && v.ts < b.to).length;
 
     // Unique Visitors (UV) in this bucket
     const visitorsInBucket = new Set<string>();
-    visitorLog.filter(v => v.ts >= b.from && v.ts < b.to).forEach(v => {
+    (visitorLog || []).filter(v => v.ts >= b.from && v.ts < b.to).forEach(v => {
       visitorsInBucket.add(v.ip);
       cumulativeUniqueIPs.add(v.ip);
     });
 
     // Find max concurrency in bucket
     let maxConcurrencyInBucket = 0;
-    const bucketMaxHistory = maxHistory.filter(h => h.ts >= b.from && h.ts < b.to);
+    const bucketMaxHistory = (maxHistory || []).filter(h => h.ts >= b.from && h.ts < b.to);
     if (bucketMaxHistory.length > 0) {
       maxConcurrencyInBucket = Math.max(...bucketMaxHistory.map(h => h.value));
     }

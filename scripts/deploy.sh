@@ -22,7 +22,7 @@ GITHUB_REPO="https://github.com/youshandebo/ai-chat-app.git"
 INSTALL_DIR="${1:-.}"
 BACK_PORT="${2:-}"
 FRONT_PORT="${3:-}"
-ADMIN_TOKEN="${ADMIN_TOKEN:-fnx081013fnx}"
+ADMIN_TOKEN="${ADMIN_TOKEN:-your_secure_token}"
 
 # Print banner
 print_banner() {

@@ -6,12 +6,14 @@ import winston from "winston";
 import dotenv from "dotenv";
 import chatRouter from "./routes/chat";
 import adminRouter from "./routes/admin";
+import articleRouter from "./routes/article";
+import uploadRouter from "./routes/upload";
 import { metricsMiddleware } from "./services/metrics";
 
 dotenv.config();
 
 const app = express();
-const PORT = parseInt(process.env.PORT || "4000");
+const PORT = parseInt(process.env.PORT || "6555");
 
 // Enhanced logging
 const logger = winston.createLogger({
@@ -56,6 +58,16 @@ app.use(
   })
 );
 
+// Debug middleware - log all incoming requests
+app.use((req, res, next) => {
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.path}`, {
+    origin: req.get('origin') || '[none]',
+    auth: req.get('authorization') ? 'Bearer ***' : '[none]',
+    query: req.query
+  });
+  next();
+});
+
 const limiter = rateLimit({
   windowMs: 60 * 1000,
   max: parseInt(process.env.RATE_LIMIT_PER_MINUTE || "60"),
@@ -71,7 +83,30 @@ app.use("/api", metricsMiddleware);
 
 app.use("/api", chatRouter);
 app.use("/api/admin", adminRouter);
+app.use("/api", articleRouter);
+app.use("/api/admin", uploadRouter);
 
+// Global error handler - must be last
+app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+  console.error("=== GLOBAL ERROR HANDLER ===");
+  console.error("Path:", req.path);
+  console.error("Method:", req.method);
+  console.error("Query:", req.query);
+  console.error("Body:", req.body);
+  console.error("Headers:", req.headers);
+  console.error("Error:", err.message);
+  console.error("Stack:", err.stack);
+  console.error("===========================");
+
+  logger.error("Unhandled error", {
+    path: req.path,
+    method: req.method,
+    error: err.message,
+    stack: err.stack
+  });
+
+  res.status(500).json({ error: "Internal Server Error", details: err.message });
+});
 
 app.listen(PORT, () => {
   logger.info(`Server running on http://localhost:${PORT}`);

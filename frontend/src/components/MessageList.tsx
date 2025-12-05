@@ -19,7 +19,7 @@ export default function MessageList() {
   }, [messages]);
 
   return (
-    <div className="p-6 bg-white dark:bg-dark-card">
+    <div className="py-4 px-6 bg-white dark:bg-dark-card min-h-full">
       {messages.map((m, i) => {
         const c = String(m.content || "");
         if (m.role === "assistant" && c.trim() === "") return null;
@@ -39,8 +39,8 @@ export default function MessageList() {
             <div className="max-w-[72%]">
               <div
                 className={`rounded-2xl px-4 py-2 shadow ${m.role === "user"
-                    ? "bg-primary dark:bg-primary/90 text-white"
-                    : "bg-gray-100 dark:bg-dark-card dark:text-dark-text border border-gray-200 dark:border-dark-border"
+                  ? "bg-primary dark:bg-primary/90 text-white"
+                  : "bg-gray-100 dark:bg-dark-card dark:text-dark-text border border-gray-200 dark:border-dark-border"
                   }`}
               >
                 {(() => {

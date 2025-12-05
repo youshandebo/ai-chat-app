@@ -7,7 +7,7 @@ const router = express.Router();
 router.post("/reload-models", (req, res) => {
   const auth = (req.get("authorization") || (req.headers["authorization"] as string) || "").trim();
   const token = process.env.ADMIN_TOKEN || "";
-  console.log("Admin access attempt:", { auth, expected: `Bearer ${token}` }); // 调试日志
+  console.log("Admin access attempt:", { auth, expected: `Bearer ${token}` });
   if (auth !== `Bearer ${token}`) {
     console.warn("Admin auth failed:", { received: auth, expectedTokenLength: token.length });
     return res.status(403).json({ error: "无权访问: Token mismatch" });
@@ -23,7 +23,7 @@ router.post("/reload-models", (req, res) => {
 router.get("/health", (req, res) => {
   const auth = (req.get("authorization") || (req.headers["authorization"] as string) || "").trim();
   const token = process.env.ADMIN_TOKEN || "";
-  console.log("Health check access attempt:", { auth, expected: `Bearer ${token}` }); // 调试日志
+  console.log("Health check access attempt:", { auth, expected: `Bearer ${token}` });
   if (auth !== `Bearer ${token}`) {
     return res.status(403).json({ error: "无权访问" });
   }
@@ -45,17 +45,28 @@ router.get("/info", (req, res) => {
 router.get("/metrics", (req, res) => {
   const auth = (req.get("authorization") || (req.headers["authorization"] as string) || "").trim();
   const token = process.env.ADMIN_TOKEN || "";
+
+  console.log("[METRICS] Request:", {
+    auth: auth ? 'Bearer ***' : '[MISS]',
+    range: req.query.range
+  });
+
   if (auth !== `Bearer ${token}`) {
+    console.warn("[METRICS] Auth failed");
     return res.status(403).json({ error: "无权访问" });
   }
+
   try {
     const range = (req.query.range as string) || "24h";
+    console.log("[METRICS] Range:", range);
     const m = getMetrics();
     const series = getSeries(range as any);
+    console.log("[METRICS] Success, series length:", series.length);
     res.json({ ...m, range, series });
-  } catch (error) {
-    console.error("Error in /metrics:", error);
-    res.status(500).json({ error: "Internal Server Error" });
+  } catch (error: any) {
+    console.error("[METRICS] ERROR:", error.message);
+    console.error("[METRICS] Stack:", error.stack);
+    res.status(500).json({ error: "Internal Server Error", msg: error.message });
   }
 });
 

@@ -74,5 +74,5 @@ const ANNOUNCEMENT_HTML = `
   <p>您的每一次节省，都在帮助我们走得更远。</p>
   <p>如果您在使用过程中遇到任何问题，欢迎随时反馈至我们的邮箱：<a href="mailto:youshandebo@gmail.com">youshandebo@gmail.com</a>。当然，如果你想找我聊天，也是非常欢迎，我们会尽快处理并持续优化用户体验。</p>
   <p>感谢您的支持与理解！</p>
-  <p>—— 网站运营团队</p>
+  <p>                                         —— 网站运营团队</p>
 `;
