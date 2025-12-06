@@ -6,6 +6,7 @@ import Chat from "./pages/Chat";
 import Changelog from "./pages/Changelog";
 import Sponsor from "./pages/Sponsor";
 import Admin from "./pages/Admin";
+import Articles from "./pages/Articles";
 
 export default function App() {
   return (
@@ -17,6 +18,7 @@ export default function App() {
           <Route path="/changelog" element={<Changelog />} />
           <Route path="/sponsor" element={<Sponsor />} />
           <Route path="/admin" element={<Admin />} />
+          <Route path="/articles" element={<Articles />} />
         </Routes>
       </Layout>
     </BrowserRouter>

@@ -218,9 +218,18 @@ export function getSeries(range: Range) {
   return series;
 }
 
-// Middleware to track visits
+// Middleware to track visits (excludes admin routes)
 export function metricsMiddleware(req: any, res: any, next: any) {
-  const ip = req.ip || req.connection.remoteAddress || 'unknown';
-  logVisit(ip);
+  // Skip admin routes
+  if (req.path.startsWith('/admin')) {
+    return next();
+  }
+
+  const ip = req.headers['x-forwarded-for'] || req.ip || req.connection.remoteAddress || 'unknown';
+  // Extract first IP if x-forwarded-for contains multiple
+  const cleanIP = typeof ip === 'string' ? ip.split(',')[0].trim() : ip;
+
+  console.log('[Metrics] Logging visit from IP:', cleanIP, 'Path:', req.path);
+  logVisit(cleanIP);
   next();
 }

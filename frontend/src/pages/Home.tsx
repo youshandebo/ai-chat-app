@@ -93,7 +93,7 @@ export default function Home() {
           <div className="max-w-7xl mx-auto">
             <h2 className="text-3xl font-bold mb-8 text-center text-gray-900 dark:text-white">最新文章</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {articles.map((article, i) => (
+              {articles.slice(0, 3).map((article, i) => (
                 <motion.div
                   key={article.id}
                   initial={{ opacity: 0, y: 20 }}
@@ -132,6 +132,16 @@ export default function Home() {
                 </motion.div>
               ))}
             </div>
+            {articles.length > 3 && (
+              <div className="text-center mt-8">
+                <Link
+                  to="/articles"
+                  className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-primary/10 text-primary font-medium hover:bg-primary hover:text-white transition-all hover:scale-105"
+                >
+                  查看更多文章 <ChevronRight className="w-5 h-5" />
+                </Link>
+              </div>
+            )}
           </div>
         </section>
       )}
