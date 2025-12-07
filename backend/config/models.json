@@ -15,6 +15,22 @@
       "apiPaths": {
         "chat": "/v1/chat/completions"
       }
+    },
+    {
+      "id": "gpt-5-nano-2025-08-07",
+      "name": "GPT-5 Nano (VectorEngine)",
+      "apiBase": "https://api.vectorengine.ai",
+      "apiKeyEnv": "VECTORENGINE_API_KEY",
+      "supportsStreaming": true,
+      "contextWindow": 128000,
+      "messageFormat": "openai",
+      "defaultParams": {
+        "temperature": 0.7,
+        "maxTokens": 4096
+      },
+      "apiPaths": {
+        "chat": "/v1/chat/completions"
+      }
     }
   ]
 }
