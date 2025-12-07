@@ -39,7 +39,7 @@ app.use(helmet());
 const corsOrigin = process.env.CORS_ORIGIN || "*";
 const allowedOrigins = corsOrigin === "*"
   ? null // Allow all if *
-  : [corsOrigin, "http://localhost:5173", "http://127.0.0.1:5173", "http://[::1]:5173"].filter(Boolean);
+  : [corsOrigin, "http://localhost:5173", "http://localhost:6556", "http://127.0.0.1:5173", "http://127.0.0.1:6556", "http://[::1]:5173", "http://[::1]:6556"].filter(Boolean);
 
 app.use(
   cors({

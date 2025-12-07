@@ -79,6 +79,24 @@ export default function ArticleDetail() {
                 url={`https://youshandebo.xx.kg/articles/${article.id}`}
             />
 
+            {/* Sticky Navigation Bar */}
+            <div className="sticky top-0 z-40 bg-white/80 dark:bg-dark-card/80 backdrop-blur-md border-b border-gray-200 dark:border-dark-border">
+                <div className="max-w-4xl mx-auto px-6 py-3 flex items-center justify-between">
+                    <Link
+                        to="/articles"
+                        className="flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-primary transition-colors font-medium"
+                    >
+                        <ArrowLeft className="w-4 h-4" /> 返回文章列表
+                    </Link>
+                    <Link
+                        to="/"
+                        className="flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-primary transition-colors"
+                    >
+                        <Home className="w-4 h-4" /> 首页
+                    </Link>
+                </div>
+            </div>
+
             {/* Header */}
             <div className="bg-white dark:bg-dark-card border-b border-gray-200 dark:border-dark-border">
                 <div className="max-w-4xl mx-auto px-6 py-8">

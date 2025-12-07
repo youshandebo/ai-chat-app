@@ -6,6 +6,23 @@ export default function Changelog() {
       <motion.h2 initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="text-2xl font-bold mb-4">更新公告</motion.h2>
 
       <div className="space-y-6">
+        {/* 2025-12-07 更新 */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.05 }}
+          className="rounded-lg border border-gray-200 dark:border-dark-border bg-white dark:bg-dark-card p-5 pb-8 relative"
+        >
+          <div className="text-gray-700 dark:text-dark-text pr-4 space-y-2">
+            <p>🐛 修复动画卡顿问题</p>
+            <p>✨ 优化页面动画效果</p>
+            <p>🤖 ChatGPT模型回归</p>
+            <p>📝 文章系统优化升级</p>
+            <p>🔍 SEO完善优化</p>
+          </div>
+          <div className="absolute right-4 bottom-3 text-xs text-gray-500 dark:text-gray-400">2025年12月07日</div>
+        </motion.div>
+
         {/* 2025-12-04 更新 */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}

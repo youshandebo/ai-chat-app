@@ -1,95 +1,151 @@
-import { useEffect, useRef, useState } from "react";
-import { motion } from "framer-motion";
+import { useEffect, useRef, useState, memo } from "react";
 
+// Interactive grid with accurate particle effect
 export default function InteractiveGrid() {
-    const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
     const containerRef = useRef<HTMLDivElement>(null);
+    const [mousePos, setMousePos] = useState({ x: -9999, y: -9999 });
+    const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
 
     useEffect(() => {
-        const handleMouseMove = (e: MouseEvent) => {
+        // Handle resize to get accurate dimensions
+        const handleResize = () => {
             if (containerRef.current) {
-                const rect = containerRef.current.getBoundingClientRect();
-                setMousePosition({
-                    x: e.clientX - rect.left,
-                    y: e.clientY - rect.top,
+                setDimensions({
+                    width: containerRef.current.offsetWidth,
+                    height: containerRef.current.offsetHeight
                 });
             }
         };
 
-        window.addEventListener("mousemove", handleMouseMove);
-        return () => window.removeEventListener("mousemove", handleMouseMove);
+        window.addEventListener('resize', handleResize);
+        handleResize(); // Initial size
+
+        // Handle mouse move
+        let ticking = false;
+        const handleMouseMove = (e: MouseEvent) => {
+            if (!ticking) {
+                ticking = true;
+                requestAnimationFrame(() => {
+                    if (containerRef.current) {
+                        const rect = containerRef.current.getBoundingClientRect();
+                        setMousePos({
+                            x: e.clientX - rect.left,
+                            y: e.clientY - rect.top,
+                        });
+                    }
+                    ticking = false;
+                });
+            }
+        };
+
+        window.addEventListener("mousemove", handleMouseMove, { passive: true });
+
+        return () => {
+            window.removeEventListener("mousemove", handleMouseMove);
+            window.removeEventListener('resize', handleResize);
+        };
     }, []);
 
-    // Denser grid
-    const rows = 16;
-    const cols = 24;
-    const items = [];
-
-    for (let i = 0; i < rows; i++) {
-        for (let j = 0; j < cols; j++) {
-            items.push({ id: `${i}-${j}`, r: i, c: j });
-        }
-    }
+    // Grid configuration
+    const rows = 14;
+    const cols = 20;
 
     return (
         <div
             ref={containerRef}
             className="absolute inset-0 overflow-hidden -z-10 pointer-events-none"
         >
-            <div className="absolute inset-0 bg-gradient-to-b from-transparent to-white/50 dark:to-dark-bg/50" />
-            <div
-                className="grid w-full h-full opacity-40 dark:opacity-30"
-                style={{
-                    gridTemplateColumns: `repeat(${cols}, 1fr)`,
-                    gridTemplateRows: `repeat(${rows}, 1fr)`,
-                }}
+            <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-white/60 dark:to-dark-bg/60" />
+            <svg
+                className="w-full h-full opacity-50 dark:opacity-40"
+                style={{ willChange: 'auto' }}
             >
-                {items.map((item) => (
-                    <GridItem key={item.id} mouseX={mousePosition.x} mouseY={mousePosition.y} />
-                ))}
-            </div>
+                {/* Only render dots if we have dimensions to prevent jumpiness */}
+                {dimensions.width > 0 && Array.from({ length: rows * cols }).map((_, i) => {
+                    const row = Math.floor(i / cols);
+                    const col = i % cols;
+                    return (
+                        <GridDot
+                            key={i}
+                            row={row}
+                            col={col}
+                            totalRows={rows}
+                            totalCols={cols}
+                            containerWidth={dimensions.width}
+                            containerHeight={dimensions.height}
+                            mouseX={mousePos.x}
+                            mouseY={mousePos.y}
+                        />
+                    );
+                })}
+            </svg>
         </div>
     );
 }
 
-function GridItem({ mouseX, mouseY }: { mouseX: number; mouseY: number }) {
-    const ref = useRef<HTMLDivElement>(null);
-    const [center, setCenter] = useState({ x: 0, y: 0 });
+// Memoized grid dot with dynamic position calculation
+const GridDot = memo(function GridDot({
+    row,
+    col,
+    totalRows,
+    totalCols,
+    containerWidth,
+    containerHeight,
+    mouseX,
+    mouseY,
+}: {
+    row: number;
+    col: number;
+    totalRows: number;
+    totalCols: number;
+    containerWidth: number;
+    containerHeight: number;
+    mouseX: number;
+    mouseY: number;
+}) {
+    // Calculate pixel position accurately based on container size
+    const pxX = ((col + 0.5) / totalCols) * containerWidth;
+    const pxY = ((row + 0.5) / totalRows) * containerHeight;
 
-    useEffect(() => {
-        if (ref.current) {
-            setCenter({
-                x: ref.current.offsetLeft + ref.current.offsetWidth / 2,
-                y: ref.current.offsetTop + ref.current.offsetHeight / 2,
-            });
-        }
-    }, []);
+    // Percentage position for SVG placement
+    const cx = `${((col + 0.5) / totalCols) * 100}%`;
+    const cy = `${((row + 0.5) / totalRows) * 100}%`;
 
-    // Calculate distance
-    const dist = Math.sqrt(Math.pow(mouseX - center.x, 2) + Math.pow(mouseY - center.y, 2));
-    const maxDist = 300;
+    const dist = Math.sqrt(Math.pow(mouseX - pxX, 2) + Math.pow(mouseY - pxY, 2));
+    const maxDist = 250;
     const influence = Math.max(0, 1 - dist / maxDist);
 
-    // More subtle, fluid movement
-    const x = (mouseX - center.x) * influence * 0.15;
-    const y = (mouseY - center.y) * influence * 0.15;
-    const scale = 1 + influence * 0.8;
-    const colorInfluence = influence * 100;
+    // Visual effects
+    // Base radius 3, max radius 9 when hovered
+    const r = 3 + influence * 6;
+    const opacity = 0.3 + influence * 0.6;
+
+    // Movement effect: move slightly towards mouse
+    // Calculate vector to mouse
+    const dx = mouseX - pxX;
+    const dy = mouseY - pxY;
+    // Move up to 20px towards mouse based on influence
+    const moveFactor = influence * 0.15;
+    const transformX = dx * moveFactor;
+    const transformY = dy * moveFactor;
+
+    // Colors
+    const red = Math.round(100 + influence * 50);
+    const green = Math.round(100 + influence * 50);
+    const blue = Math.round(180 + influence * 75);
 
     return (
-        <div ref={ref} className="flex items-center justify-center">
-            <motion.div
-                className="w-1 h-1 rounded-full bg-gray-400 dark:bg-gray-600"
-                style={{
-                    backgroundColor: `rgba(${100 + colorInfluence}, ${100 + colorInfluence}, ${255}, ${0.3 + influence * 0.5})`
-                }}
-                animate={{
-                    x,
-                    y,
-                    scale,
-                }}
-                transition={{ type: "spring", stiffness: 100, damping: 20, mass: 0.2 }}
-            />
-        </div>
+        <circle
+            cx={cx}
+            cy={cy}
+            r={r}
+            fill={`rgba(${red}, ${green}, ${blue}, ${opacity})`}
+            style={{
+                transform: `translate(${transformX}px, ${transformY}px)`,
+                transformBox: 'fill-box',
+                transformOrigin: 'center',
+                transition: 'all 0.1s ease-out',
+            }}
+        />
     );
-}
+});
