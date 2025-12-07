@@ -18,7 +18,7 @@
     },
     {
       "id": "gpt-5-nano-2025-08-07",
-      "name": "GPT-5 Nano (VectorEngine)",
+      "name": "gpt-5-nano-2025-08-07",
       "apiBase": "https://api.vectorengine.ai",
       "apiKeyEnv": "VECTORENGINE_API_KEY",
       "supportsStreaming": true,
