@@ -288,6 +288,17 @@ const Admin = () => {
         const width = 1000;
         const padding = 20;
 
+        // Color mapping for different metrics
+        const colorMap: Record<string, { stroke: string; fill: string; text: string }> = {
+            visits: { stroke: '#6366f1', fill: '#6366f1', text: '访问' },      // Indigo (primary)
+            calls: { stroke: '#8b5cf6', fill: '#8b5cf6', text: 'API' },        // Purple
+            errors: { stroke: '#ef4444', fill: '#ef4444', text: '错误' },      // Red
+            visitors: { stroke: '#10b981', fill: '#10b981', text: '访客' },    // Green
+            cumulativeVisitors: { stroke: '#f59e0b', fill: '#f59e0b', text: '累计访客' } // Amber
+        };
+
+        const currentColor = colorMap[metricType] || colorMap.visits;
+
         const points = data.map((d, i) => {
             const x = (i / (data.length - 1)) * width;
             const y = height - ((d[metricType] as number || 0) / maxVal) * (height - padding * 2) - padding;
@@ -297,8 +308,6 @@ const Admin = () => {
         const pathD = points.length > 1
             ? `M ${points.map(p => `${p.x},${p.y}`).join(' L ')}`
             : '';
-
-        const metricName = metricType === 'visits' ? '访问' : metricType === 'calls' ? 'API' : metricType === 'errors' ? '错误' : '访客';
 
         return (
             <div className="relative w-full">
@@ -315,7 +324,7 @@ const Admin = () => {
                     {points.length > 1 && (
                         <path
                             d={`${pathD} L ${points[points.length - 1].x},${height} L ${points[0].x},${height} Z`}
-                            fill="url(#gradient)"
+                            fill={currentColor.fill}
                             opacity="0.2"
                         />
                     )}
@@ -325,9 +334,8 @@ const Admin = () => {
                         <motion.path
                             d={pathD}
                             fill="none"
-                            stroke="currentColor"
+                            stroke={currentColor.stroke}
                             strokeWidth="2"
-                            className="text-primary"
                             initial={{ pathLength: 0, opacity: 0 }}
                             animate={{ pathLength: 1, opacity: 1 }}
                             transition={{ duration: 1.5, ease: "easeInOut" }}
@@ -341,20 +349,12 @@ const Admin = () => {
                             cx={p.x}
                             cy={p.y}
                             r={hoveredIndex === i ? 6 : 4}
-                            fill="currentColor"
-                            className="text-primary cursor-pointer transition-all"
+                            fill={currentColor.fill}
+                            className="cursor-pointer transition-all"
                             onMouseEnter={() => setHoveredIndex(i)}
                             onMouseLeave={() => setHoveredIndex(null)}
                         />
                     ))}
-
-                    {/* Gradient */}
-                    <defs>
-                        <linearGradient id="gradient" x1="0" x2="0" y1="0" y2="1">
-                            <stop offset="0%" stopColor="currentColor" className="text-primary" />
-                            <stop offset="100%" stopColor="currentColor" className="text-primary" stopOpacity="0" />
-                        </linearGradient>
-                    </defs>
                 </svg>
 
                 {/* Tooltip */}
@@ -368,7 +368,7 @@ const Admin = () => {
                         }}
                     >
                         <div className="font-bold whitespace-nowrap">{points[hoveredIndex].label}</div>
-                        <div className="whitespace-nowrap">{metricName}: {points[hoveredIndex].val}</div>
+                        <div className="whitespace-nowrap">{currentColor.text}: {points[hoveredIndex].val}</div>
                     </div>
                 )}
             </div>

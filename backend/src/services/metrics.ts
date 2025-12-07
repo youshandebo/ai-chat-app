@@ -140,7 +140,8 @@ function bucketize(range: Range) {
     for (let i = 23; i >= 0; i--) {
       const from = now - (i + 1) * 3600 * 1000;
       const to = now - i * 3600 * 1000;
-      const date = new Date(from);
+      // Use 'to' time for label (the end of the bucket period)
+      const date = new Date(to);
       buckets.push({ from, to, label: `${date.getHours()}:00` });
     }
   } else if (range === "7d") {
