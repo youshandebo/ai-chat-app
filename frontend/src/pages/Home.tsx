@@ -49,7 +49,7 @@ export default function Home() {
           聚合AI · 一键对话
         </h1>
         <p className="text-xl md:text-2xl mb-8 text-gray-600 dark:text-gray-300 max-w-2xl">
-          免费使用 Gemini, ChatGPT 等主流大模型，让 AI 触手可及
+          免费使用Gemini, ChatGPT等主流大模型，让AI触手可及
         </p>
         <div className="flex gap-4">
           <Link to="/chat" className="px-6 py-3 rounded-full bg-primary text-white text-lg font-medium hover:bg-indigo-600 dark:bg-primary dark:hover:bg-indigo-500 transition-all hover:scale-105 shadow-lg hover:shadow-xl">
@@ -67,7 +67,7 @@ export default function Home() {
           {[
             { title: "⚡ 多模型切换", desc: "一键在 Gemini / ChatGPT 等模型间切换，适配不同场景。" },
             { title: "🧠 上下文记忆", desc: "本地保存会话与消息，持续对话不丢失，支持重命名与删除。" },
-            { title: "🔒 隐私优先", desc: "数据仅存于本地浏览器，不上传后端；接口只转发模型请求。" },
+            { title: "🔒 隐私优先", desc: "数据仅存于本地浏览器，不上传后端；接口只转发模型请求。仅会捕捉敏感对话并记录在服务器端。" },
           ].map((c, i) => (
             <motion.div
               key={c.title}
@@ -155,10 +155,10 @@ export default function Home() {
           </p>
           <div className="flex justify-center gap-4">
             <Link to="/sponsor" className="px-6 py-3 rounded-full bg-primary text-white font-medium hover:bg-indigo-600 transition-transform hover:scale-105 shadow-lg">
-              前往赞助页面
+              查看赞助页面
             </Link>
             <a href="https://afdian.com/a/youshandebo" target="_blank" rel="noopener noreferrer" className="px-6 py-3 rounded-full border border-gray-200 dark:border-dark-border bg-white dark:bg-dark-card text-gray-800 dark:text-white hover:bg-gray-50 dark:hover:bg-dark-card/80 transition-transform hover:scale-105">
-              直接爱发电
+              直接去爱发电
             </a>
           </div>
         </div>
