@@ -40,56 +40,151 @@
 
 .code-block-wrapper {
   margin: 16px 0;
-  border-radius: 8px;
+  border-radius: 12px;
   overflow: hidden;
-  border: 1px solid var(--dark-border);
-  background: var(--dark-card);
+  border: 1px solid rgba(99, 102, 241, 0.2);
+  background: linear-gradient(135deg, #1e1e2e 0%, #2d2d3d 100%);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
 }
 
 .dark .code-block-wrapper {
-  background: #2d2d2d;
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+  border-color: rgba(99, 102, 241, 0.3);
 }
 
 .light .code-block-wrapper {
-  background: #f6f8fa;
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  border-color: rgba(99, 102, 241, 0.15);
 }
 
 .code-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 8px 16px;
-  background: var(--dark-border);
-  font-size: 14px;
+  padding: 10px 16px;
+  background: linear-gradient(90deg, rgba(99, 102, 241, 0.15) 0%, rgba(139, 92, 246, 0.1) 100%);
+  border-bottom: 1px solid rgba(99, 102, 241, 0.1);
+  font-size: 13px;
 }
 
 .language-tag {
-  color: #8b949e;
+  color: #a78bfa;
   text-transform: uppercase;
-  font-weight: 600;
+  font-weight: 700;
+  font-size: 11px;
+  letter-spacing: 0.5px;
+  padding: 3px 8px;
+  background: rgba(99, 102, 241, 0.2);
+  border-radius: 4px;
+}
+
+.light .language-tag {
+  color: #6366f1;
+  background: rgba(99, 102, 241, 0.1);
 }
 
 .copy-button {
-  background: transparent;
-  border: none;
-  color: #8b949e;
+  background: rgba(99, 102, 241, 0.15);
+  border: 1px solid rgba(99, 102, 241, 0.3);
+  color: #a78bfa;
   cursor: pointer;
-  padding: 4px;
-  border-radius: 4px;
-  transition: all 0.2s;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  transition: all 0.2s ease;
 }
 
 .copy-button:hover {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(99, 102, 241, 0.3);
   color: #fff;
+  transform: translateY(-1px);
 }
 
-.code-content {
-  padding: 16px;
+.copy-button.copied {
+  background: rgba(34, 197, 94, 0.2);
+  border-color: rgba(34, 197, 94, 0.4);
+  color: #22c55e;
+}
+
+.light .copy-button {
+  color: #6366f1;
+}
+
+.code-block-wrapper pre {
+  margin: 0;
+  padding: 16px 20px;
   overflow-x: auto;
-  font-family: 'Fira Code', monospace;
-  font-size: 14px;
-  line-height: 1.5;
+  font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+  font-size: 13px;
+  line-height: 1.6;
+  tab-size: 2;
+}
+
+.code-block-wrapper pre code {
+  color: #e2e8f0;
+  background: transparent;
+}
+
+.light .code-block-wrapper pre code {
+  color: #1e293b;
+}
+
+/* Prism Token Colors - Dark Theme */
+.token.comment,
+.token.prolog,
+.token.doctype,
+.token.cdata {
+  color: #6b7280;
+  font-style: italic;
+}
+
+.token.punctuation {
+  color: #9ca3af;
+}
+
+.token.property,
+.token.tag,
+.token.boolean,
+.token.number,
+.token.constant,
+.token.symbol,
+.token.deleted {
+  color: #f472b6;
+}
+
+.token.selector,
+.token.attr-name,
+.token.string,
+.token.char,
+.token.builtin,
+.token.inserted {
+  color: #34d399;
+}
+
+.token.operator,
+.token.entity,
+.token.url,
+.language-css .token.string,
+.style .token.string {
+  color: #fbbf24;
+}
+
+.token.atrule,
+.token.attr-value,
+.token.keyword {
+  color: #818cf8;
+}
+
+.token.function,
+.token.class-name {
+  color: #60a5fa;
+}
+
+.token.regex,
+.token.important,
+.token.variable {
+  color: #fb923c;
 }
 
 pre {
