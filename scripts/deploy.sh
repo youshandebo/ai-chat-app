@@ -358,7 +358,12 @@ start_services() {
     
     pm2 delete "$BACK_NAME" 2>/dev/null || true
     pm2 delete "$FRONT_NAME" 2>/dev/null || true
-    sleep 1
+    
+    # Force kill any remaining processes on these ports to avoid EADDRINUSE
+    kill_port_process $BACK_PORT
+    kill_port_process $FRONT_PORT
+    
+    sleep 2
     
     log_info "Starting backend service..."
     cd "$BACK_DIR"
@@ -456,7 +461,8 @@ update_nginx_config() {
             log_info "Backed up existing Nginx config"
         fi
 
-        # Write new config
+        # Write new config with PROPERLY ESCAPED VARIABLES
+        # We use \ to escape $ so it's written literally to the file for Nginx to use
         sudo bash -c "cat > $CONFIG_FILE << EOF
 server {
     listen 80;
@@ -502,6 +508,32 @@ EOF"
         fi
     else
         log_info "Nginx not detected, skipping configuration update"
+    fi
+}
+
+# Kill processes on specific ports
+kill_port_process() {
+    local port=$1
+    log_info "Checking port $port..."
+    
+    # Try using lsof
+    if command -v lsof >/dev/null 2>&1; then
+        local pid=$(lsof -t -i:$port)
+        if [ -n "$pid" ]; then
+            log_warn "Killing process $pid on port $port"
+            kill -9 $pid 2>/dev/null || true
+        fi
+    # Fallback to netstat/ss
+    elif command -v netstat >/dev/null 2>&1; then
+        local pid=$(netstat -nlp | grep ":$port " | awk '{print $7}' | cut -d'/' -f1)
+        if [ -n "$pid" ] && [ "$pid" != "-" ]; then
+             log_warn "Killing process $pid on port $port"
+             kill -9 $pid 2>/dev/null || true
+        fi
+    else 
+        # Last resort: PM2 check
+        # This is handled in start_services but extra safety here
+        true
     fi
 }
 
