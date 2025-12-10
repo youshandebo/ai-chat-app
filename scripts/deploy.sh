@@ -433,6 +433,78 @@ wait_and_health_check() {
     fi
 }
 
+# Update Nginx Configuration if exists
+update_nginx_config() {
+    log_step "Step 9/9: Update Nginx Configuration"
+
+    if [ -d "/etc/nginx/sites-available" ]; then
+        log_info "Detected Nginx installation, updating configuration..."
+        
+        # Check for existing config files to determine server name
+        SERVER_NAME="localhost"
+        possible_domains=$(grep -r "server_name" /etc/nginx/sites-enabled/ 2>/dev/null | awk '{print $3}' | grep -v "_" | sort | uniq | head -n 1)
+        if [ -n "$possible_domains" ]; then
+            SERVER_NAME=$(echo "$possible_domains" | sed 's/;//')
+            log_info "Detected existing domain: $SERVER_NAME"
+        fi
+
+        CONFIG_FILE="/etc/nginx/sites-available/ai-chat"
+        
+        # Backup existing config
+        if [ -f "$CONFIG_FILE" ]; then
+            cp "$CONFIG_FILE" "${CONFIG_FILE}.bak_$(date +%s)"
+            log_info "Backed up existing Nginx config"
+        fi
+
+        # Write new config
+        sudo bash -c "cat > $CONFIG_FILE << EOF
+server {
+    listen 80;
+    server_name $SERVER_NAME;
+
+    # Frontend Proxy (WebSocket support)
+    location / {
+        proxy_pass http://127.0.0.1:$FRONT_PORT;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host \$host;
+        proxy_cache_bypass \$http_upgrade;
+    }
+
+    # Backend API Proxy
+    location /api {
+        proxy_pass http://127.0.0.1:$BACK_PORT;
+        proxy_http_version 1.1;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+    }
+}
+EOF"
+
+        # Enable site if not enabled
+        if [ ! -L "/etc/nginx/sites-enabled/ai-chat" ]; then
+            sudo ln -s "$CONFIG_FILE" /etc/nginx/sites-enabled/ai-chat
+            log_success "Enabled Nginx site"
+        fi
+        
+        # Test and reload Nginx
+        if sudo nginx -t >/dev/null 2>&1; then
+            sudo systemctl reload nginx
+            log_success "Nginx configuration updated and reloaded"
+        else
+            log_error "Nginx configuration test failed, restoring backup..."
+            if [ -f "${CONFIG_FILE}.bak_*" ]; then
+                cp $(ls -t ${CONFIG_FILE}.bak_* | head -n1) "$CONFIG_FILE"
+                sudo systemctl reload nginx
+            fi
+        fi
+    else
+        log_info "Nginx not detected, skipping configuration update"
+    fi
+}
+
 # Show completion info
 show_completion_info() {
     log_step "Deployment complete"
@@ -485,6 +557,7 @@ main() {
     setup_environment
     start_services
     wait_and_health_check
+    update_nginx_config
     show_completion_info
 }
 

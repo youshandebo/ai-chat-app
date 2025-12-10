@@ -6,6 +6,21 @@ export default function Changelog() {
       <motion.h2 initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="text-2xl font-bold mb-4">更新公告</motion.h2>
 
       <div className="space-y-6">
+        {/* 2025-12-10 更新 */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.05 }}
+          className="rounded-lg border border-gray-200 dark:border-dark-border bg-white dark:bg-dark-card p-5 pb-8 relative"
+        >
+          <div className="text-gray-700 dark:text-dark-text pr-4 space-y-2">
+            <p>UI界面升级：优化移动端适配，新增折叠菜单，改进代码块显示样式</p>
+            <p>修复与优化：修复管理后台显示问题，增强数据加载稳定性</p>
+            <p>系统优化：完善 SEO (sitemap, robots, ads.txt)，提升收录</p>
+          </div>
+          <div className="absolute right-4 bottom-3 text-xs text-gray-500 dark:text-gray-400">2025年12月10日</div>
+        </motion.div>
+
         {/* 2025-12-07 更新 */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}

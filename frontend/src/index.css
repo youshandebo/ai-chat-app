@@ -38,23 +38,28 @@
   }
 }
 
+/* Improved Code Block Styles - Harmonious with bubbles but sufficient contrast */
 .code-block-wrapper {
   margin: 16px 0;
   border-radius: 12px;
   overflow: hidden;
   border: 1px solid rgba(99, 102, 241, 0.2);
-  background: linear-gradient(135deg, #1e1e2e 0%, #2d2d3d 100%);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  /* Dark mode: slightly lighter/darker than bubble (#1e1e2e -> #272733) */
+  background: #1e1e2e;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
 }
 
 .dark .code-block-wrapper {
-  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
-  border-color: rgba(99, 102, 241, 0.3);
+  background: #181825;
+  /* Slightly darker than standard dark card for "inset" feel */
+  border-color: rgba(255, 255, 255, 0.1);
 }
 
 .light .code-block-wrapper {
-  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
-  border-color: rgba(99, 102, 241, 0.15);
+  background: #ffffff;
+  /* Crisp white for light mode, distinct from gray-50/100 bubbles */
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 }
 
 .code-header {
