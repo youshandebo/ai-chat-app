@@ -356,6 +356,12 @@ start_services() {
     local BACK_NAME="ai-chat-backend-$BACK_PORT"
     local FRONT_NAME="ai-chat-frontend-$FRONT_PORT"
     
+    # Delete OLD legacy processes if they exist
+    pm2 delete backend 2>/dev/null || true
+    pm2 delete ai-chat-frontend 2>/dev/null || true
+    pm2 delete ai-chat-backend 2>/dev/null || true
+    
+    # Delete current version processes
     pm2 delete "$BACK_NAME" 2>/dev/null || true
     pm2 delete "$FRONT_NAME" 2>/dev/null || true
     
@@ -489,21 +495,20 @@ server {
 }
 EOF"
 
-        # Enable site if not enabled
-        if [ ! -L "/etc/nginx/sites-enabled/ai-chat" ]; then
-            sudo ln -s "$CONFIG_FILE" /etc/nginx/sites-enabled/ai-chat
-            log_success "Enabled Nginx site"
-        fi
-        
-        # Test and reload Nginx
-        if sudo nginx -t >/dev/null 2>&1; then
+        # Check syntax before linking
+        if sudo nginx -t -c /etc/nginx/nginx.conf; then
+             # Enable site if not enabled
+            if [ ! -L "/etc/nginx/sites-enabled/ai-chat" ]; then
+                sudo ln -s "$CONFIG_FILE" /etc/nginx/sites-enabled/ai-chat
+                log_success "Enabled Nginx site"
+            fi
             sudo systemctl reload nginx
             log_success "Nginx configuration updated and reloaded"
         else
-            log_error "Nginx configuration test failed, restoring backup..."
+            log_error "Nginx configuration syntax invalid, restoring backup..."
             if [ -f "${CONFIG_FILE}.bak_*" ]; then
-                cp $(ls -t ${CONFIG_FILE}.bak_* | head -n1) "$CONFIG_FILE"
-                sudo systemctl reload nginx
+                 cp $(ls -t ${CONFIG_FILE}.bak_* | head -n1) "$CONFIG_FILE"
+                 sudo systemctl reload nginx
             fi
         fi
     else
