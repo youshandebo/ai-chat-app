@@ -264,10 +264,27 @@ EOF
     # Increase Node memory limit for builds and SHOW OUTPUT
     if NODE_OPTIONS="--max-old-space-size=4096" npm run build; then
         log_success "Frontend build complete"
+        
+        # VERIFICATION: Print proof of files
+        log_info "Verifying build artifacts:"
+        if [ -f "dist/ads.txt" ]; then
+            log_success "ads.txt found! Content:"
+            cat dist/ads.txt
+            echo ""
+        else
+            log_error "ads.txt NOT found in dist!"
+        fi
+        
     else
         log_warn "Frontend build failed, retrying with even more memory..."
         if NODE_OPTIONS="--max-old-space-size=6144" npm run build; then
             log_success "Frontend build complete (with increased memory)"
+             # VERIFICATION
+            if [ -f "dist/ads.txt" ]; then
+                log_success "ads.txt found! Content:"
+                cat dist/ads.txt
+                echo ""
+            fi
         else
             log_error "Frontend build failed even with increased memory. Output shown above."
             log_info "Trying alternative build strategy (no minification)..."
