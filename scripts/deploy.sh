@@ -473,8 +473,8 @@ wait_and_health_check() {
         sleep 1
     done
     
-```bash
-        fi
+    if [ $elapsed -ge $timeout ]; then
+        log_warn "Frontend startup is slow"
     fi
 }
 
