@@ -22,6 +22,7 @@ GITHUB_REPO="https://github.com/youshandebo/ai-chat-app.git"
 INSTALL_DIR="${1:-.}"
 BACK_PORT="${2:-}"
 FRONT_PORT="${3:-}"
+DOMAIN_ARG="${4:-}"
 ADMIN_TOKEN="${ADMIN_TOKEN:-your_secure_token}"
 
 # Print banner
@@ -229,8 +230,12 @@ build_frontend() {
     log_step "Step 6/8: Build frontend"
     
     cd "$FRONT_DIR"
-    log_info "Installing dependencies..."
     
+    # FORCE CLEAN BUILD: Remove old artifacts and cache
+    log_info "Cleaning old build artifacts and cache..."
+    rm -rf dist node_modules/.vite
+    
+    log_info "Installing dependencies..."
     if npm install --legacy-peer-deps >/dev/null 2>&1; then
         log_success "Dependencies installed"
     else
@@ -468,24 +473,52 @@ wait_and_health_check() {
         sleep 1
     done
     
-    if [ $elapsed -ge $timeout ]; then
-        log_warn "Frontend startup is slow"
+```bash
+        fi
     fi
 }
 
-# Update Nginx Configuration if exists
+# Update Nginx Configuration
 update_nginx_config() {
     log_step "Step 9/9: Update Nginx Configuration"
 
     if [ -d "/etc/nginx/sites-available" ]; then
         log_info "Detected Nginx installation, updating configuration..."
         
-        # Check for existing config files to determine server name
-        SERVER_NAME="localhost"
-        possible_domains=$(grep -r "server_name" /etc/nginx/sites-enabled/ 2>/dev/null | awk '{print $3}' | grep -v "_" | sort | uniq | head -n 1)
-        if [ -n "$possible_domains" ]; then
-            SERVER_NAME=$(echo "$possible_domains" | sed 's/;//')
-            log_info "Detected existing domain: $SERVER_NAME"
+        # Determine SERVER_NAME
+        if [ -n "$DOMAIN_ARG" ]; then
+            SERVER_NAME="$DOMAIN_ARG"
+            log_info "Using provided domain: $SERVER_NAME"
+        else
+            # Try to auto-detect
+            SERVER_NAME="localhost"
+            # Extract server_name, remove 'server_name', remove ';', remove whitespace
+            possible_domains=$(grep -r "server_name" /etc/nginx/sites-enabled/ 2>/dev/null | sed 's/server_name//g' | sed 's/;//g' | xargs -n1 | grep -v "_" | grep -v "localhost" | sort | uniq | head -n 1)
+            
+            if [ -n "$possible_domains" ]; then
+                SERVER_NAME="$possible_domains"
+                log_info "Detected existing domain: $SERVER_NAME"
+            else
+                log_warn "Could not detect domain, defaulting to: $SERVER_NAME"
+                log_info "To use a custom domain, run: bash deploy.sh <dir> <back_port> <front_port> <domain>"
+            fi
+        fi
+
+        # AGGRESSIVE CLEANUP: Remove conflicting configs
+        log_info "Cleaning up conflicting Nginx configurations..."
+        if [ -f "/etc/nginx/sites-enabled/default" ]; then
+            log_warn "Disabling default Nginx config to prevent conflicts"
+            rm -f /etc/nginx/sites-enabled/default
+        fi
+        
+        # Disable any OTHER config that uses this domain (except our own)
+        if [ "$SERVER_NAME" != "localhost" ]; then
+             grep -l "$SERVER_NAME" /etc/nginx/sites-enabled/* 2>/dev/null | while read -r conflict_file; do
+                if [ "$(basename "$conflict_file")" != "ai-chat" ]; then
+                    log_warn "Found conflicting config: $conflict_file. Disabling it..."
+                    mv "$conflict_file" "${conflict_file}.disabled_by_ai_chat"
+                fi
+            done
         fi
 
         CONFIG_FILE="/etc/nginx/sites-available/ai-chat"
@@ -523,6 +556,11 @@ server {
     }
 }
 EOF"
+        
+        # DEBUG: Print the generated config
+        log_info "Generated Nginx Config:"
+        cat "$CONFIG_FILE"
+        echo ""
 
         # Check syntax before linking
         if sudo nginx -t -c /etc/nginx/nginx.conf; then
@@ -531,14 +569,25 @@ EOF"
                 sudo ln -s "$CONFIG_FILE" /etc/nginx/sites-enabled/ai-chat
                 log_success "Enabled Nginx site"
             fi
-            sudo systemctl reload nginx
-            log_success "Nginx configuration updated and reloaded"
+            
+            # FORCE RESTART nginx to apply changes immediately
+            if sudo systemctl restart nginx; then
+                log_success "Nginx restarted successfully"
+            else
+                log_error "Failed to restart Nginx"
+                exit 1
+            fi
         else
             log_error "Nginx configuration syntax invalid, restoring backup..."
             if [ -f "${CONFIG_FILE}.bak_*" ]; then
-                 cp $(ls -t ${CONFIG_FILE}.bak_* | head -n1) "$CONFIG_FILE"
-                 sudo systemctl reload nginx
+                # Find latest backup
+                LATEST_BACKUP=$(ls -t ${CONFIG_FILE}.bak_* | head -n1)
+                if [ -n "$LATEST_BACKUP" ]; then
+                    cp "$LATEST_BACKUP" "$CONFIG_FILE"
+                    sudo systemctl restart nginx
+                fi
             fi
+            exit 1
         fi
     else
         log_info "Nginx not detected, skipping configuration update"
