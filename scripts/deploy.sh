@@ -256,16 +256,16 @@ VITE_ADMIN_TOKEN=$ADMIN_TOKEN
 EOF
     
     log_info "Build static files..."
-    # Increase Node memory limit for builds
-    if NODE_OPTIONS="--max-old-space-size=2048" npm run build >/dev/null 2>&1; then
+    # Increase Node memory limit for builds and SHOW OUTPUT
+    if NODE_OPTIONS="--max-old-space-size=4096" npm run build; then
         log_success "Frontend build complete"
     else
-        log_warn "Frontend build failed, retrying with more memory..."
-        if NODE_OPTIONS="--max-old-space-size=3072" npm run build >/dev/null 2>&1; then
+        log_warn "Frontend build failed, retrying with even more memory..."
+        if NODE_OPTIONS="--max-old-space-size=6144" npm run build; then
             log_success "Frontend build complete (with increased memory)"
         else
-            log_error "Frontend build failed even with increased memory"
-            log_info "Trying alternative build strategy..."
+            log_error "Frontend build failed even with increased memory. Output shown above."
+            log_info "Trying alternative build strategy (no minification)..."
             # Try building without minification as last resort
             cat > vite.config.ts.bak << 'EOF_VITE'
 import { defineConfig } from 'vite'
@@ -279,7 +279,7 @@ export default defineConfig({
   }
 })
 EOF_VITE
-            if NODE_OPTIONS="--max-old-space-size=1024" npm run build >/dev/null 2>&1; then
+            if NODE_OPTIONS="--max-old-space-size=4096" npm run build; then
                 log_success "Frontend build complete (with minimal optimization)"
             else
                 log_error "Frontend build failed after multiple attempts"
