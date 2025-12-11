@@ -73,6 +73,13 @@ determine_root_dir() {
             log_warn "Directory exists: $INSTALL_DIR/ai-chat-app"
             ROOT_DIR="$INSTALL_DIR/ai-chat-app"
             CLONE_NEEDED=false
+            
+            # FORCE UPDATE existing directory
+            log_info "Updating source code..."
+            cd "$ROOT_DIR"
+            git fetch --all
+            git reset --hard origin/main
+            cd ..
         else
             log_info "Clone project to: $INSTALL_DIR/ai-chat-app"
             mkdir -p "$INSTALL_DIR"
