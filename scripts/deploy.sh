@@ -237,6 +237,11 @@ build_frontend() {
         npm install
     fi
     
+    # FIX: Ensure executables have permission to run
+    if [ -d "node_modules/.bin" ]; then
+        chmod -R +x node_modules/.bin
+    fi
+    
     # Detect public IP for frontend API configuration
     local BACKEND_URL="http://localhost:$BACK_PORT"
     if [ -n "$BACKEND_HOST" ]; then
