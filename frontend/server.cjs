@@ -1,54 +1,45 @@
 const express = require('express');
 const path = require('path');
 const fs = require('fs');
-const app = express();
-const PORT = parseInt(process.env.PORT) || 6558;
-const distPath = path.join(__dirname, 'dist');
-app.use(express.static(distPath, { maxAge: '1d' }));
-app.get('/health', (req, res) => {
-  res.json({ status: 'ok' });
-});
-// Fallback middleware (no path pattern) - avoids path-to-regexp issues
-app.use((req, res, next) => {
-  const indexPath = path.join(distPath, 'index.html');
-  if (fs.existsSync(indexPath)) {
-  res.sendFile(indexPath);
-  } else {
-  res.status(404).send('index.html not found');
-  }
-});
-// Error handler to capture unexpected exceptions and log them
-app.use((err, req, res, next) => {
-  console.error('[Frontend] Unhandled error:', err && err.stack ? err.stack : err);
-  res.status(500).send('Internal Server Error');
-});
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`[Frontend] Running on http://0.0.0.0:${PORT}`);
-});
-const express = require('express');
-const path = require('path');
-const fs = require('fs');
 
 const app = express();
-const PORT = parseInt(process.env.PORT) || 6558;
 const distPath = path.join(__dirname, 'dist');
 
-app.use(express.static(distPath, { maxAge: '1d' }));
+// Check if dist directory exists
+if (!fs.existsSync(distPath)) {
+    console.error('Error: dist directory not found. Please build the frontend first.');
+    // In development we might not have dist, but this is server.cjs for production usually
+    // We won't exit here to avoid crashing if run locally without build, but it will fail to serve
+}
+
+app.use(express.static(distPath));
 
 app.get('/health', (req, res) => {
-  res.json({ status: 'ok' });
+    res.json({ status: 'ok' });
 });
 
-// Use '/*' to avoid path-to-regexp '*' parsing issues
-app.get('/*', (req, res) => {
-  const indexPath = path.join(distPath, 'index.html');
-  if (fs.existsSync(indexPath)) {
-    res.sendFile(indexPath);
-  } else {
-    res.status(404).send('index.html not found');
-  }
+// SPA Fallback
+app.use((req, res) => {
+    const indexPath = path.join(distPath, 'index.html');
+    if (fs.existsSync(indexPath)) {
+        res.sendFile(indexPath, err => {
+            if (err) {
+                res.status(500).send('Server error');
+            }
+        });
+    } else {
+        res.status(404).send('index.html not found. Please build the frontend.');
+    }
 });
 
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`[Frontend] Running on http://0.0.0.0:${PORT}`);
+const PORT = process.env.PORT || 6558;
+const HOST = '0.0.0.0';
+
+app.listen(PORT, HOST, () => {
+    console.log(`[Frontend] Running on http://${HOST}:${PORT}`);
+});
+
+process.on('SIGTERM', () => {
+    console.log('[Frontend] Shutting down...');
+    process.exit(0);
 });

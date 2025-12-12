@@ -335,6 +335,7 @@ EOF
     
     cd "$FRONT_DIR"
     log_info "Configure frontend Express server..."
+    rm -f server.cjs
     cat > server.cjs << 'EOFJS'
 const express = require('express');
 const path = require('path');
@@ -354,7 +355,7 @@ app.get('/health', (req, res) => {
     res.json({ status: 'ok' });
 });
 
-// SPA 回退路由：所有其他请求都返回 index.html
+// SPA Fallback
 app.use((req, res) => {
     res.sendFile(path.join(distPath, 'index.html'), err => {
         if (err) {
@@ -375,6 +376,10 @@ process.on('SIGTERM', () => {
     process.exit(0);
 });
 EOFJS
+
+    log_info "Generated server.cjs content:"
+    cat server.cjs
+
     
     if ! grep -q "express" package.json 2>/dev/null; then
         npm install express >/dev/null 2>&1 || true
