@@ -18,7 +18,7 @@ export default function Changelog() {
             <p>修复与优化：修复管理后台显示问题，增强数据加载稳定性</p>
             <p>系统优化：完善 SEO (sitemap, robots, ads.txt)，提升收录</p>
           </div>
-          <div className="absolute right-4 bottom-3 text-xs text-gray-500 dark:text-gray-400">2025年12月10日</div>
+          <div className="absolute right-4 bottom-3 text-xs text-gray-500 dark:text-gray-400">2025年12月12日</div>
         </motion.div>
 
         {/* 2025-12-07 更新 */}
