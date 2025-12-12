@@ -73,7 +73,7 @@ const Admin = () => {
     const [articles, setArticles] = useState<Article[]>([]);
     const [isEditing, setIsEditing] = useState(false);
     const [editingArticle, setEditingArticle] = useState<Partial<Article>>({});
-    
+
     const [sponsors, setSponsors] = useState<Sponsor[]>([]);
     const [isEditingSponsor, setIsEditingSponsor] = useState(false);
     const [editingSponsor, setEditingSponsor] = useState<Partial<Sponsor>>({});
@@ -133,7 +133,7 @@ const Admin = () => {
             // Public endpoint doesn't need auth, but admin endpoint might be better if we want more details?
             // Actually let's use public for listing, but we need editing.
             // Wait, public list is fine.
-            
+
             if (!res.ok) throw new Error('Failed to fetch sponsors');
             const data = await res.json();
             setSponsors(data);
@@ -1108,8 +1108,8 @@ const Admin = () => {
                                                     <tr key={sponsor.id} className="border-b border-gray-200 dark:border-dark-border hover:bg-gray-50 dark:hover:bg-dark-bg/50 transition-colors">
                                                         <td className="py-4 px-4">
                                                             <div className="flex items-center gap-3">
-                                                                <img 
-                                                                    src={sponsor.avatar || 'https://via.placeholder.com/40'} 
+                                                                <img
+                                                                    src={sponsor.avatar || 'https://via.placeholder.com/40'}
                                                                     alt={sponsor.name}
                                                                     className="w-10 h-10 rounded-full object-cover border border-gray-200 dark:border-dark-border"
                                                                 />
@@ -1154,5 +1154,9 @@ const Admin = () => {
                         )}
                     </div>
                 )}
+            </div>
+        </div>
+    );
+};
 
 export default Admin;
