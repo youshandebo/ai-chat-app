@@ -18,7 +18,8 @@ import {
     CheckCircle,
     Save,
     Edit,
-    Trash2
+    Trash2,
+    Upload
 } from 'lucide-react';
 
 interface MetricSeries {
@@ -79,8 +80,10 @@ const Admin = () => {
     const [editingSponsor, setEditingSponsor] = useState<Partial<Sponsor>>({});
 
     const [saveStatus, setSaveStatus] = useState<'saving' | 'success' | 'error' | ''>('');
+    const [avatarUploading, setAvatarUploading] = useState(false);
 
     const textareaRef = useRef<HTMLTextAreaElement>(null);
+    const avatarInputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
         const token = localStorage.getItem('admin_token');
@@ -293,6 +296,51 @@ const Admin = () => {
         }
     };
 
+    // Handle avatar upload for sponsors
+    const handleAvatarUpload = async (file: File) => {
+        try {
+            setAvatarUploading(true);
+            const formData = new FormData();
+            formData.append('image', file);
+
+            const token = localStorage.getItem('admin_token');
+            const res = await fetch('/api/admin/upload-avatar', {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` },
+                body: formData
+            });
+
+            if (!res.ok) throw new Error('Upload failed');
+
+            const data = await res.json();
+            setEditingSponsor(prev => ({ ...prev, avatar: data.url }));
+        } catch (err) {
+            console.error(err);
+            alert('头像上传失败');
+        } finally {
+            setAvatarUploading(false);
+        }
+    };
+
+    const handleAvatarDrop = (e: React.DragEvent) => {
+        e.preventDefault();
+        const files = e.dataTransfer.files;
+        if (files.length > 0 && files[0].type.startsWith('image/')) {
+            handleAvatarUpload(files[0]);
+        }
+    };
+
+    const handleAvatarPaste = (e: React.ClipboardEvent) => {
+        const items = e.clipboardData.items;
+        for (let i = 0; i < items.length; i++) {
+            if (items[i].type.indexOf('image') !== -1) {
+                e.preventDefault();
+                const file = items[i].getAsFile();
+                if (file) handleAvatarUpload(file);
+            }
+        }
+    };
+
     const handleImageUpload = async (file: File) => {
         try {
             const formData = new FormData();
@@ -375,8 +423,8 @@ const Admin = () => {
 
         // Color mapping for different metrics
         const colorMap: Record<string, { stroke: string; fill: string; text: string }> = {
-            visits: { stroke: '#6366f1', fill: '#6366f1', text: '访问' },      // Indigo (primary)
-            calls: { stroke: '#8b5cf6', fill: '#8b5cf6', text: 'API' },        // Purple
+            visits: { stroke: '#00B4FF', fill: '#00B4FF', text: '访问' },      // Primary blue
+            calls: { stroke: '#06B6D4', fill: '#06B6D4', text: 'API' },        // Cyan
             errors: { stroke: '#ef4444', fill: '#ef4444', text: '错误' },      // Red
             visitors: { stroke: '#10b981', fill: '#10b981', text: '访客' },    // Green
             cumulativeVisitors: { stroke: '#f59e0b', fill: '#f59e0b', text: '累计访客' } // Amber
@@ -496,7 +544,7 @@ const Admin = () => {
                         )}
                         <button
                             type="submit"
-                            className="w-full bg-primary hover:bg-indigo-600 text-white py-2 px-4 rounded-lg font-medium transition-colors"
+                            className="w-full bg-primary hover:bg-primary/90 text-white py-2 px-4 rounded-lg font-medium transition-colors"
                         >
                             登录
                         </button>
@@ -744,7 +792,7 @@ const Admin = () => {
                                             setEditingArticle({ published: false, tags: [] });
                                             setIsEditing(true);
                                         }}
-                                        className="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-indigo-600 text-white rounded-lg transition-colors font-medium"
+                                        className="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary/90 text-white rounded-lg transition-colors font-medium"
                                     >
                                         <Plus className="w-4 h-4" />
                                         新建文章
@@ -862,7 +910,7 @@ const Admin = () => {
                                             <button
                                                 onClick={handleSaveArticle}
                                                 disabled={saveStatus === 'saving'}
-                                                className="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-indigo-600 text-white rounded-lg transition-colors font-medium disabled:opacity-50"
+                                                className="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary/90 text-white rounded-lg transition-colors font-medium disabled:opacity-50"
                                             >
                                                 {saveStatus === 'saving' ? (
                                                     <>
@@ -976,7 +1024,7 @@ const Admin = () => {
                                             setEditingSponsor({});
                                             setIsEditingSponsor(true);
                                         }}
-                                        className="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-indigo-600 text-white rounded-lg transition-colors font-medium"
+                                        className="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary/90 text-white rounded-lg transition-colors font-medium"
                                     >
                                         <Plus className="w-4 h-4" />
                                         添加赞助者
@@ -1016,15 +1064,50 @@ const Admin = () => {
 
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                                            头像链接
+                                            头像
                                         </label>
-                                        <input
-                                            type="text"
-                                            value={editingSponsor.avatar || ''}
-                                            onChange={e => setEditingSponsor(prev => ({ ...prev, avatar: e.target.value }))}
-                                            className="w-full px-4 py-2 border border-gray-300 dark:border-dark-border rounded-lg bg-white dark:bg-dark-bg text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"
-                                            placeholder="https://example.com/avatar.jpg"
-                                        />
+                                        <div
+                                            className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors ${avatarUploading ? 'opacity-50 pointer-events-none' : 'hover:border-primary hover:bg-primary/5'} ${editingSponsor.avatar ? 'border-primary' : 'border-gray-300 dark:border-dark-border'}`}
+                                            onDrop={handleAvatarDrop}
+                                            onDragOver={e => e.preventDefault()}
+                                            onPaste={handleAvatarPaste}
+                                            onClick={() => avatarInputRef.current?.click()}
+                                            tabIndex={0}
+                                        >
+                                            {editingSponsor.avatar ? (
+                                                <div className="flex flex-col items-center gap-3">
+                                                    <img
+                                                        src={editingSponsor.avatar}
+                                                        alt="头像预览"
+                                                        className="w-20 h-20 rounded-full object-cover border-2 border-primary shadow-md"
+                                                    />
+                                                    <span className="text-sm text-gray-500 dark:text-gray-400">点击或拖拽更换头像</span>
+                                                </div>
+                                            ) : (
+                                                <div className="flex flex-col items-center gap-3 py-4">
+                                                    {avatarUploading ? (
+                                                        <RefreshCw className="w-10 h-10 text-primary animate-spin" />
+                                                    ) : (
+                                                        <Upload className="w-10 h-10 text-gray-400" />
+                                                    )}
+                                                    <div>
+                                                        <p className="text-sm font-medium text-gray-700 dark:text-gray-300">点击或拖拽上传头像</p>
+                                                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">支持 JPG, PNG, WebP</p>
+                                                    </div>
+                                                </div>
+                                            )}
+                                            <input
+                                                type="file"
+                                                accept="image/*"
+                                                hidden
+                                                ref={avatarInputRef}
+                                                onChange={e => {
+                                                    const file = e.target.files?.[0];
+                                                    if (file) handleAvatarUpload(file);
+                                                    e.target.value = '';
+                                                }}
+                                            />
+                                        </div>
                                     </div>
 
                                     <div>
@@ -1062,7 +1145,7 @@ const Admin = () => {
                                         <button
                                             onClick={handleSaveSponsor}
                                             disabled={saveStatus === 'saving'}
-                                            className="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-indigo-600 text-white rounded-lg transition-colors font-medium disabled:opacity-50"
+                                            className="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary/90 text-white rounded-lg transition-colors font-medium disabled:opacity-50"
                                         >
                                             {saveStatus === 'saving' ? (
                                                 <>

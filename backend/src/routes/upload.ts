@@ -2,35 +2,17 @@ import express from 'express';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
+import sharp from 'sharp';
 
 const router = express.Router();
 
-// Configure storage
-const storage = multer.diskStorage({
-    destination: function (req: express.Request, file: Express.Multer.File, cb: (error: Error | null, destination: string) => void) {
-        // Save to frontend public directory so it's accessible
-        // Assuming backend is at root/backend and frontend is at root/frontend
-        const uploadDir = path.join(process.cwd(), '../frontend/public/uploads');
-
-        // Ensure directory exists
-        if (!fs.existsSync(uploadDir)) {
-            fs.mkdirSync(uploadDir, { recursive: true });
-        }
-
-        cb(null, uploadDir);
-    },
-    filename: function (req: express.Request, file: Express.Multer.File, cb: (error: Error | null, filename: string) => void) {
-        // Generate unique filename: timestamp-random-originalName
-        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-        const ext = path.extname(file.originalname);
-        cb(null, uniqueSuffix + ext);
-    }
-});
+// Configure storage - use memory storage for processing with sharp
+const storage = multer.memoryStorage();
 
 const upload = multer({
     storage: storage,
     limits: {
-        fileSize: 5 * 1024 * 1024 // 5MB limit
+        fileSize: 10 * 1024 * 1024 // 10MB limit (will be compressed)
     },
     fileFilter: (req: express.Request, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
         if (file.mimetype.startsWith('image/')) {
@@ -51,19 +33,36 @@ const requireAdmin = (req: express.Request, res: express.Response, next: express
     next();
 };
 
-router.post('/upload-image', requireAdmin, upload.single('image'), (req: express.Request, res: express.Response) => {
+// Helper: ensure upload directory exists
+const ensureUploadDir = () => {
+    const uploadDir = path.join(process.cwd(), '../frontend/public/uploads');
+    if (!fs.existsSync(uploadDir)) {
+        fs.mkdirSync(uploadDir, { recursive: true });
+    }
+    return uploadDir;
+};
+
+// General image upload with compression
+router.post('/upload-image', requireAdmin, upload.single('image'), async (req: express.Request, res: express.Response) => {
     try {
         if (!req.file) {
             return res.status(400).json({ error: 'No file uploaded' });
         }
 
-        // Return the public URL
-        // Since we saved to frontend/public/uploads, the URL is /uploads/filename
-        const publicUrl = `/uploads/${req.file.filename}`;
+        const uploadDir = ensureUploadDir();
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+        const filename = uniqueSuffix + '.webp';
+        const outputPath = path.join(uploadDir, filename);
 
+        // Compress and convert to WebP (high quality, good compression)
+        await sharp(req.file.buffer)
+            .webp({ quality: 85 })
+            .toFile(outputPath);
+
+        const publicUrl = `/uploads/${filename}`;
         res.json({
             url: publicUrl,
-            filename: req.file.filename
+            filename: filename
         });
     } catch (error) {
         console.error('Upload error:', error);
@@ -71,4 +70,37 @@ router.post('/upload-image', requireAdmin, upload.single('image'), (req: express
     }
 });
 
+// Avatar upload with additional optimization (smaller size, circular crop ready)
+router.post('/upload-avatar', requireAdmin, upload.single('image'), async (req: express.Request, res: express.Response) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({ error: 'No file uploaded' });
+        }
+
+        const uploadDir = ensureUploadDir();
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+        const filename = 'avatar-' + uniqueSuffix + '.webp';
+        const outputPath = path.join(uploadDir, filename);
+
+        // Resize to 200x200, center crop, high quality WebP
+        await sharp(req.file.buffer)
+            .resize(200, 200, {
+                fit: 'cover',
+                position: 'center'
+            })
+            .webp({ quality: 90 })
+            .toFile(outputPath);
+
+        const publicUrl = `/uploads/${filename}`;
+        res.json({
+            url: publicUrl,
+            filename: filename
+        });
+    } catch (error) {
+        console.error('Avatar upload error:', error);
+        res.status(500).json({ error: 'Avatar upload failed' });
+    }
+});
+
 export default router;
+

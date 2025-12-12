@@ -45,14 +45,14 @@ export default function Home() {
         transition={{ duration: 0.6, type: "spring" }}
         className="flex-1 flex flex-col items-center justify-center px-6 py-16 md:py-24 text-center z-10"
       >
-        <h1 className="text-5xl md:text-6xl font-bold mb-6 bg-clip-text text-transparent bg-gradient-to-r from-primary to-indigo-600 dark:from-indigo-400 dark:to-white">
+        <h1 className="text-5xl md:text-6xl font-bold mb-6 bg-clip-text text-transparent bg-gradient-to-r from-primary to-cyan-400 dark:from-primary dark:to-cyan-300">
           聚合AI · 一键对话
         </h1>
         <p className="text-xl md:text-2xl mb-8 text-gray-600 dark:text-gray-300 max-w-2xl">
           免费使用Gemini, ChatGPT等主流大模型，让AI触手可及
         </p>
         <div className="flex gap-4">
-          <Link to="/chat" className="px-6 py-3 rounded-full bg-primary text-white text-lg font-medium hover:bg-indigo-600 dark:bg-primary dark:hover:bg-indigo-500 transition-all hover:scale-105 shadow-lg hover:shadow-xl">
+          <Link to="/chat" className="px-6 py-3 rounded-full bg-primary text-white text-lg font-medium hover:bg-primary/90 dark:bg-primary dark:hover:bg-primary/80 transition-all hover:scale-105 shadow-lg hover:shadow-xl">
             立即开始聊天
           </Link>
           <Link to="/changelog" className="px-6 py-3 rounded-full border border-gray-200 dark:border-dark-border bg-white/50 dark:bg-dark-card/50 backdrop-blur-sm text-gray-800 dark:text-white hover:bg-gray-100 dark:hover:bg-dark-card transition-all hover:scale-105">
@@ -154,7 +154,7 @@ export default function Home() {
             本站完全免费，您的支持是我们持续更新的动力
           </p>
           <div className="flex justify-center gap-4">
-            <Link to="/sponsor" className="px-6 py-3 rounded-full bg-primary text-white font-medium hover:bg-indigo-600 transition-transform hover:scale-105 shadow-lg">
+            <Link to="/sponsor" className="px-6 py-3 rounded-full bg-primary text-white font-medium hover:bg-primary/90 transition-transform hover:scale-105 shadow-lg">
               查看赞助页面
             </Link>
             <a href="https://afdian.com/a/youshandebo" target="_blank" rel="noopener noreferrer" className="px-6 py-3 rounded-full border border-gray-200 dark:border-dark-border bg-white dark:bg-dark-card text-gray-800 dark:text-white hover:bg-gray-50 dark:hover:bg-dark-card/80 transition-transform hover:scale-105">
