@@ -123,8 +123,8 @@ export function getMetrics() {
   const uniqueIPs = new Set(visitorLog.map(v => v.ip));
 
   return {
-    visitors: uniqueIPs.size, // Total unique visitors ever
-    totalUniqueVisitors: uniqueIPs.size,
+    visitors: visitorLog.length, // Total visits (PV)
+    totalUniqueVisitors: uniqueIPs.size, // Total unique visitors (UV)
     maxConcurrency: maxActive,
     calls: calls?.length || 0,
     errors: errors?.length || 0
@@ -222,7 +222,7 @@ export function getSeries(range: Range) {
 // Middleware to track visits (excludes admin routes)
 export function metricsMiddleware(req: any, res: any, next: any) {
   // Skip admin routes
-  if (req.path.startsWith('/admin')) {
+  if (req.path.startsWith('/admin') || req.path.startsWith('/api/admin')) {
     return next();
   }
 

@@ -49,6 +49,15 @@ interface Article {
     updatedAt: number;
 }
 
+interface Sponsor {
+    id: string;
+    name: string;
+    avatar: string;
+    message: string;
+    amount?: string;
+    date: number;
+}
+
 const Admin = () => {
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [password, setPassword] = useState('');
@@ -56,7 +65,7 @@ const Admin = () => {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
 
-    const [activeTab, setActiveTab] = useState<'dashboard' | 'articles'>('dashboard');
+    const [activeTab, setActiveTab] = useState<'dashboard' | 'articles' | 'sponsors'>('dashboard');
     const [timeRange, setTimeRange] = useState<'24h' | '7d' | '30d' | '365d'>('24h');
     const [metricType, setMetricType] = useState<keyof MetricSeries>('visits');
     const [metrics, setMetrics] = useState<MetricsData | null>(null);
@@ -64,6 +73,11 @@ const Admin = () => {
     const [articles, setArticles] = useState<Article[]>([]);
     const [isEditing, setIsEditing] = useState(false);
     const [editingArticle, setEditingArticle] = useState<Partial<Article>>({});
+    
+    const [sponsors, setSponsors] = useState<Sponsor[]>([]);
+    const [isEditingSponsor, setIsEditingSponsor] = useState(false);
+    const [editingSponsor, setEditingSponsor] = useState<Partial<Sponsor>>({});
+
     const [saveStatus, setSaveStatus] = useState<'saving' | 'success' | 'error' | ''>('');
 
     const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -82,8 +96,10 @@ const Admin = () => {
         if (isAuthenticated) {
             if (activeTab === 'dashboard') {
                 fetchMetrics();
-            } else {
+            } else if (activeTab === 'articles') {
                 fetchArticles();
+            } else if (activeTab === 'sponsors') {
+                fetchSponsors();
             }
         }
     }, [isAuthenticated, activeTab, timeRange]);
@@ -105,9 +121,78 @@ const Admin = () => {
         setIsAuthenticated(false);
         setMetrics(null);
         setArticles([]);
+        setSponsors([]);
     };
 
     // --- Handlers: Data Fetching ---
+    const fetchSponsors = async () => {
+        try {
+            setLoading(true);
+            const token = localStorage.getItem('admin_token');
+            const res = await fetch('/api/sponsors');
+            // Public endpoint doesn't need auth, but admin endpoint might be better if we want more details?
+            // Actually let's use public for listing, but we need editing.
+            // Wait, public list is fine.
+            
+            if (!res.ok) throw new Error('Failed to fetch sponsors');
+            const data = await res.json();
+            setSponsors(data);
+        } catch (err) {
+            console.error(err);
+            setError('无法加载赞助者列表');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleSaveSponsor = async () => {
+        try {
+            setSaveStatus('saving');
+            const token = localStorage.getItem('admin_token');
+            const isNew = !editingSponsor.id;
+            const url = isNew ? '/api/admin/sponsors' : `/api/admin/sponsors/${editingSponsor.id}`;
+            const method = isNew ? 'POST' : 'PUT';
+
+            const res = await fetch(url, {
+                method,
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(editingSponsor)
+            });
+
+            if (!res.ok) throw new Error('Failed to save sponsor');
+
+            setSaveStatus('success');
+            setTimeout(() => setSaveStatus(''), 2000);
+            setIsEditingSponsor(false);
+            fetchSponsors();
+        } catch (err) {
+            console.error(err);
+            setSaveStatus('error');
+            alert('保存失败');
+        }
+    };
+
+    const handleDeleteSponsor = async (id: string) => {
+        if (!confirm('确定要删除这位赞助者吗？')) return;
+
+        try {
+            const token = localStorage.getItem('admin_token');
+            const res = await fetch(`/api/admin/sponsors/${id}`, {
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+
+            if (!res.ok) throw new Error('Failed to delete sponsor');
+            fetchSponsors();
+        } catch (err) {
+            console.error(err);
+            alert('删除失败');
+        }
+    };
+
     const fetchMetrics = async () => {
         try {
             setLoading(true);
@@ -453,6 +538,15 @@ const Admin = () => {
                             >
                                 文章管理
                             </button>
+                            <button
+                                onClick={() => setActiveTab('sponsors')}
+                                className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${activeTab === 'sponsors'
+                                    ? 'bg-white dark:bg-gray-700 text-primary shadow-sm'
+                                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                                    }`}
+                            >
+                                赞助者
+                            </button>
                         </div>
 
                         <button
@@ -466,7 +560,7 @@ const Admin = () => {
                 </div>
 
                 {/* Content Area */}
-                {activeTab === 'dashboard' ? (
+                {activeTab === 'dashboard' && (
                     // --- Dashboard View ---
                     <div className="space-y-6">
                         {/* Stats Cards */}
@@ -632,7 +726,9 @@ const Admin = () => {
                             </div>
                         )}
                     </div>
-                ) : (
+                )}
+
+                {activeTab === 'articles' && (
                     // --- Articles View ---
                     <div className="space-y-6">
                         {/* Article Header */}
@@ -864,9 +960,199 @@ const Admin = () => {
                         )}
                     </div>
                 )}
-            </div>
-        </div>
-    );
-};
+
+                {activeTab === 'sponsors' && (
+                    <div className="space-y-6">
+                        {/* Sponsor Header */}
+                        {!isEditingSponsor && (
+                            <div className="bg-white dark:bg-dark-card p-6 rounded-xl border border-gray-200 dark:border-dark-border shadow-sm">
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-1">赞助者列表</h2>
+                                        <p className="text-gray-600 dark:text-gray-400 text-sm">共 {sponsors.length} 位赞助者</p>
+                                    </div>
+                                    <button
+                                        onClick={() => {
+                                            setEditingSponsor({});
+                                            setIsEditingSponsor(true);
+                                        }}
+                                        className="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-indigo-600 text-white rounded-lg transition-colors font-medium"
+                                    >
+                                        <Plus className="w-4 h-4" />
+                                        添加赞助者
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Sponsor Editor */}
+                        {isEditingSponsor ? (
+                            <div className="bg-white dark:bg-dark-card p-6 rounded-xl border border-gray-200 dark:border-dark-border shadow-sm">
+                                <div className="flex items-center justify-between mb-6">
+                                    <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+                                        {editingSponsor.id ? '编辑赞助者' : '添加赞助者'}
+                                    </h2>
+                                    <button
+                                        onClick={() => setIsEditingSponsor(false)}
+                                        className="p-2 hover:bg-gray-100 dark:hover:bg-dark-bg rounded-lg transition-colors"
+                                    >
+                                        <X className="w-5 h-5 text-gray-500" />
+                                    </button>
+                                </div>
+
+                                <div className="space-y-6">
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                            昵称
+                                        </label>
+                                        <input
+                                            type="text"
+                                            value={editingSponsor.name || ''}
+                                            onChange={e => setEditingSponsor(prev => ({ ...prev, name: e.target.value }))}
+                                            className="w-full px-4 py-2 border border-gray-300 dark:border-dark-border rounded-lg bg-white dark:bg-dark-bg text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"
+                                            placeholder="赞助者昵称"
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                            头像链接
+                                        </label>
+                                        <input
+                                            type="text"
+                                            value={editingSponsor.avatar || ''}
+                                            onChange={e => setEditingSponsor(prev => ({ ...prev, avatar: e.target.value }))}
+                                            className="w-full px-4 py-2 border border-gray-300 dark:border-dark-border rounded-lg bg-white dark:bg-dark-bg text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"
+                                            placeholder="https://example.com/avatar.jpg"
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                            赞助金额 (可选)
+                                        </label>
+                                        <input
+                                            type="text"
+                                            value={editingSponsor.amount || ''}
+                                            onChange={e => setEditingSponsor(prev => ({ ...prev, amount: e.target.value }))}
+                                            className="w-full px-4 py-2 border border-gray-300 dark:border-dark-border rounded-lg bg-white dark:bg-dark-bg text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"
+                                            placeholder="例如：¥50"
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                            留言
+                                        </label>
+                                        <textarea
+                                            value={editingSponsor.message || ''}
+                                            onChange={e => setEditingSponsor(prev => ({ ...prev, message: e.target.value }))}
+                                            className="w-full h-32 p-4 border border-gray-300 dark:border-dark-border rounded-lg bg-white dark:bg-dark-bg text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent resize-none"
+                                            placeholder="赞助留言..."
+                                        />
+                                    </div>
+
+                                    <div className="flex justify-end gap-3 pt-4 border-t border-gray-200 dark:border-dark-border">
+                                        <button
+                                            onClick={() => setIsEditingSponsor(false)}
+                                            className="px-4 py-2 border border-gray-300 dark:border-dark-border text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-dark-bg transition-colors"
+                                        >
+                                            取消
+                                        </button>
+                                        <button
+                                            onClick={handleSaveSponsor}
+                                            disabled={saveStatus === 'saving'}
+                                            className="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-indigo-600 text-white rounded-lg transition-colors font-medium disabled:opacity-50"
+                                        >
+                                            {saveStatus === 'saving' ? (
+                                                <>
+                                                    <RefreshCw className="w-4 h-4 animate-spin" />
+                                                    保存中...
+                                                </>
+                                            ) : saveStatus === 'success' ? (
+                                                <>
+                                                    <CheckCircle className="w-4 h-4" />
+                                                    已保存
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <Save className="w-4 h-4" />
+                                                    保存赞助者
+                                                </>
+                                            )}
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        ) : (
+                            // Sponsor List
+                            <div className="bg-white dark:bg-dark-card rounded-xl border border-gray-200 dark:border-dark-border shadow-sm overflow-hidden">
+                                {loading ? (
+                                    <div className="text-center py-12 text-gray-500">加载中...</div>
+                                ) : sponsors.length === 0 ? (
+                                    <div className="text-center py-12 text-gray-500">暂无赞助者</div>
+                                ) : (
+                                    <div className="overflow-x-auto">
+                                        <table className="w-full">
+                                            <thead className="bg-gray-50 dark:bg-dark-bg border-b border-gray-200 dark:border-dark-border">
+                                                <tr>
+                                                    <th className="py-3 px-4 text-left text-sm font-semibold text-gray-700 dark:text-gray-300">用户</th>
+                                                    <th className="py-3 px-4 text-left text-sm font-semibold text-gray-700 dark:text-gray-300">金额</th>
+                                                    <th className="py-3 px-4 text-left text-sm font-semibold text-gray-700 dark:text-gray-300">留言</th>
+                                                    <th className="py-3 px-4 text-left text-sm font-semibold text-gray-700 dark:text-gray-300">时间</th>
+                                                    <th className="py-3 px-4 text-right text-sm font-semibold text-gray-700 dark:text-gray-300">操作</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {sponsors.map(sponsor => (
+                                                    <tr key={sponsor.id} className="border-b border-gray-200 dark:border-dark-border hover:bg-gray-50 dark:hover:bg-dark-bg/50 transition-colors">
+                                                        <td className="py-4 px-4">
+                                                            <div className="flex items-center gap-3">
+                                                                <img 
+                                                                    src={sponsor.avatar || 'https://via.placeholder.com/40'} 
+                                                                    alt={sponsor.name}
+                                                                    className="w-10 h-10 rounded-full object-cover border border-gray-200 dark:border-dark-border"
+                                                                />
+                                                                <div className="font-medium text-gray-900 dark:text-white">{sponsor.name}</div>
+                                                            </div>
+                                                        </td>
+                                                        <td className="py-4 px-4 text-gray-700 dark:text-gray-300 font-medium">
+                                                            {sponsor.amount || '-'}
+                                                        </td>
+                                                        <td className="py-4 px-4 text-gray-600 dark:text-gray-400 max-w-xs truncate">
+                                                            {sponsor.message}
+                                                        </td>
+                                                        <td className="py-4 px-4 text-gray-600 dark:text-gray-400 text-sm">
+                                                            {new Date(sponsor.date).toLocaleDateString()}
+                                                        </td>
+                                                        <td className="py-4 px-4">
+                                                            <div className="flex items-center justify-end gap-2">
+                                                                <button
+                                                                    onClick={() => {
+                                                                        setEditingSponsor(sponsor);
+                                                                        setIsEditingSponsor(true);
+                                                                    }}
+                                                                    className="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-dark-bg rounded-lg transition-colors"
+                                                                >
+                                                                    <Edit className="w-4 h-4" />
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => handleDeleteSponsor(sponsor.id)}
+                                                                    className="p-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                                                                >
+                                                                    <Trash2 className="w-4 h-4" />
+                                                                </button>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                )}
 
 export default Admin;

@@ -70,7 +70,7 @@ export default function ArticleDetail() {
         .trim() + '...';
 
     return (
-        <div className="min-h-screen bg-gray-50 dark:bg-dark-bg">
+        <div className="min-h-screen bg-gray-100 dark:bg-dark-bg transition-colors duration-300">
             <SEO
                 title={article.title}
                 description={description}
@@ -97,57 +97,60 @@ export default function ArticleDetail() {
                 </div>
             </div>
 
-            {/* Header */}
-            <header className="bg-white dark:bg-dark-card border-b border-gray-200 dark:border-dark-border">
-                <div className="max-w-3xl mx-auto px-6 py-12">
-                    <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        className="space-y-6"
-                    >
-                        <div className="flex flex-wrap gap-2">
-                            {article.tags?.map((tag) => (
-                                <span
-                                    key={tag}
-                                    className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-primary/10 text-primary"
-                                >
-                                    <Tag className="w-3 h-3 mr-1" />
-                                    {tag}
-                                </span>
-                            ))}
-                        </div>
-
-                        <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900 dark:text-white leading-tight">
-                            {article.title}
-                        </h1>
-
-                        <div className="flex items-center gap-6 text-sm text-gray-500 dark:text-gray-400">
-                            <div className="flex items-center gap-2">
-                                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-purple-600 flex items-center justify-center text-white font-bold">
-                                    {article.author[0].toUpperCase()}
-                                </div>
-                                <span className="font-medium text-gray-900 dark:text-gray-200">{article.author}</span>
-                            </div>
-                            <div className="flex items-center gap-1.5">
-                                <Calendar className="w-4 h-4" />
-                                <time dateTime={new Date(article.createdAt).toISOString()}>
-                                    {new Date(article.createdAt).toLocaleDateString()}
-                                </time>
-                            </div>
-                        </div>
-                    </motion.div>
-                </div>
-            </header>
-
-            {/* Content */}
-            <main className="max-w-3xl mx-auto px-6 py-12">
-                <motion.article
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ delay: 0.2 }}
-                    className="prose prose-lg dark:prose-invert max-w-none"
+            {/* Main Content Area */}
+            <div className="max-w-4xl mx-auto px-4 sm:px-6 py-12">
+                <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="bg-white dark:bg-dark-card rounded-3xl shadow-2xl border border-gray-200 dark:border-dark-border overflow-hidden ring-1 ring-black/5"
                 >
-                    <ReactMarkdown
+                    {/* Article Header */}
+                    <div className="px-8 pt-12 pb-10 border-b border-gray-100 dark:border-gray-800 bg-gradient-to-b from-gray-50/80 to-transparent dark:from-white/5">
+                        <div className="space-y-6">
+                            <div className="flex flex-wrap gap-2">
+                                {article.tags?.map((tag) => (
+                                    <span
+                                        key={tag}
+                                        className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-primary/10 text-primary border border-primary/20"
+                                    >
+                                        <Tag className="w-3 h-3 mr-1" />
+                                        {tag}
+                                    </span>
+                                ))}
+                            </div>
+
+                            <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900 dark:text-white leading-tight tracking-tight">
+                                {article.title}
+                            </h1>
+
+                            <div className="flex items-center gap-6 text-sm text-gray-500 dark:text-gray-400">
+                                <div className="flex items-center gap-2">
+                                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-blue-500 flex items-center justify-center text-white font-bold shadow-md">
+                                        {article.author[0].toUpperCase()}
+                                    </div>
+                                    <div className="flex flex-col">
+                                        <span className="font-medium text-gray-900 dark:text-gray-200">{article.author}</span>
+                                        <span className="text-xs text-gray-400">作者</span>
+                                    </div>
+                                </div>
+                                <div className="h-8 w-px bg-gray-200 dark:bg-gray-700"></div>
+                                <div className="flex flex-col">
+                                    <div className="flex items-center gap-1.5 text-gray-700 dark:text-gray-300">
+                                        <Calendar className="w-4 h-4" />
+                                        <time dateTime={new Date(article.createdAt).toISOString()}>
+                                            {new Date(article.createdAt).toLocaleDateString()}
+                                        </time>
+                                    </div>
+                                    <span className="text-xs text-gray-400">发布日期</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Article Body */}
+                    <div className="px-8 py-10">
+                        <article className="prose prose-lg dark:prose-invert max-w-none">
+                            <ReactMarkdown
                         remarkPlugins={[remarkGfm, remarkBreaks]}
                         components={{
                             h1: ({node, ...props}) => <h1 className="text-3xl font-bold mt-10 mb-6 text-gray-900 dark:text-white pb-2 border-b border-gray-100 dark:border-gray-800" {...props} />,
@@ -199,19 +202,21 @@ export default function ArticleDetail() {
                         }}
                     >
                         {article.content}
-                    </ReactMarkdown>
-                </motion.article>
+                            </ReactMarkdown>
+                        </article>
 
-                {/* Footer / Navigation */}
-                <div className="mt-16 pt-8 border-t border-gray-200 dark:border-dark-border flex justify-between items-center">
-                    <Link to="/articles" className="text-gray-600 dark:text-gray-400 hover:text-primary transition-colors flex items-center gap-2">
-                        <ArrowLeft className="w-4 h-4" /> 返回列表
-                    </Link>
-                    <div className="text-sm text-gray-400">
-                        最后更新于 {new Date(article.updatedAt).toLocaleDateString()}
+                        {/* Footer / Navigation */}
+                        <div className="mt-16 pt-8 border-t border-gray-200 dark:border-dark-border flex justify-between items-center">
+                            <Link to="/articles" className="text-gray-600 dark:text-gray-400 hover:text-primary transition-colors flex items-center gap-2">
+                                <ArrowLeft className="w-4 h-4" /> 返回列表
+                            </Link>
+                            <div className="text-sm text-gray-400">
+                                最后更新于 {new Date(article.updatedAt).toLocaleDateString()}
+                            </div>
+                        </div>
                     </div>
-                </div>
-            </main>
+                </motion.div>
+            </div>
         </div>
     );
 }

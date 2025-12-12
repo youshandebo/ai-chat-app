@@ -8,7 +8,7 @@ module.exports = {
         'dark-card': '#2a2a2a',
         'dark-border': '#3a3a3a',
         'dark-text': '#e5e7eb',
-        'primary': '#6366f1',
+        'primary': '#00B4FF',
       },
     },
   },

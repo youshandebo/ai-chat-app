@@ -8,6 +8,7 @@ import chatRouter from "./routes/chat";
 import adminRouter from "./routes/admin";
 import articleRouter from "./routes/article";
 import uploadRouter from "./routes/upload";
+import sponsorRouter from "./routes/sponsor";
 import { metricsMiddleware } from "./services/metrics";
 
 dotenv.config();
@@ -85,6 +86,7 @@ app.use("/api", chatRouter);
 app.use("/api/admin", adminRouter);
 app.use("/api", articleRouter);
 app.use("/api/admin", uploadRouter);
+app.use("/api", sponsorRouter);
 
 // Global error handler - must be last
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
