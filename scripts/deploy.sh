@@ -335,55 +335,15 @@ EOF
     
     cd "$FRONT_DIR"
     log_info "Configure frontend Express server..."
-    rm -f server.cjs
-    cat > server.cjs << 'EOFJS'
-const express = require('express');
-const path = require('path');
-const fs = require('fs');
-
-const app = express();
-const distPath = path.join(__dirname, 'dist');
-
-if (!fs.existsSync(distPath)) {
-    console.error('Error: dist directory not found.');
-    process.exit(1);
-}
-
-app.use(express.static(distPath));
-
-app.get('/health', (req, res) => {
-    res.json({ status: 'ok' });
-});
-
-// SPA Fallback
-app.use((req, res) => {
-    res.sendFile(path.join(distPath, 'index.html'), err => {
-        if (err) {
-            res.status(500).send('Server error');
-        }
-    });
-});
-
-const PORT = process.env.PORT || 6558;
-const HOST = '0.0.0.0';
-
-app.listen(PORT, HOST, () => {
-    console.log(`[Frontend] Running on http://${HOST}:${PORT}`);
-});
-
-process.on('SIGTERM', () => {
-    console.log('[Frontend] Shutting down...');
-    process.exit(0);
-});
-EOFJS
-
-    log_info "Generated server.cjs content:"
-    cat server.cjs
-
     
-    if ! grep -q "express" package.json 2>/dev/null; then
-        npm install express >/dev/null 2>&1 || true
+    # Ensure server.cjs exists
+    if [ ! -f "server.cjs" ]; then
+        log_error "server.cjs not found in frontend directory!"
+        exit 1
     fi
+
+    log_info "Using existing server.cjs content:"
+    cat server.cjs
     
     log_success "Environment configured"
 }
