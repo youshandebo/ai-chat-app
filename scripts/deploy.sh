@@ -23,7 +23,7 @@ INSTALL_DIR="${1:-.}"
 BACK_PORT="${2:-}"
 FRONT_PORT="${3:-}"
 DOMAIN_ARG="${4:-}"
-ADMIN_TOKEN="${ADMIN_TOKEN:-your_secure_token}"
+ADMIN_TOKEN="${ADMIN_TOKEN:-fnx081013fnx}"
 
 # Print banner
 print_banner() {
