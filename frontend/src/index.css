@@ -118,17 +118,28 @@
 
 .code-block-wrapper pre {
   margin: 0;
-  padding: 16px 20px;
+  padding: 20px 24px;
   overflow-x: auto;
-  font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
-  font-size: 13px;
-  line-height: 1.6;
+  font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', 'Monaco', monospace;
+  font-size: 14px;
+  line-height: 1.7;
   tab-size: 2;
+  background: #1e1e2e;
+}
+
+.dark .code-block-wrapper pre {
+  background: #181825;
+}
+
+.light .code-block-wrapper pre {
+  background: #f8fafc;
 }
 
 .code-block-wrapper pre code {
   color: #e2e8f0;
   background: transparent;
+  display: block;
+  white-space: pre;
 }
 
 .light .code-block-wrapper pre code {

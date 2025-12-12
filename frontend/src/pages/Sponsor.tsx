@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Heart, User } from 'lucide-react';
+import { Heart, User, ExternalLink } from 'lucide-react';
 import SEO from '../components/SEO';
 
 interface Sponsor {
@@ -44,9 +44,19 @@ export default function Sponsor() {
                         <Heart className="w-8 h-8 text-red-500" fill="currentColor" />
                     </div>
                     <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-4">感谢支持</h1>
-                    <p className="text-gray-600 dark:text-gray-400 text-lg max-w-2xl mx-auto">
+                    <p className="text-gray-600 dark:text-gray-400 text-lg max-w-2xl mx-auto mb-6">
                         每一份支持都是我们前进的动力。感谢以下朋友对本项目的慷慨赞助！
                     </p>
+                    <a
+                        href="https://afdian.com/a/youshandebo"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-2 px-6 py-3 bg-primary text-white font-medium rounded-full hover:bg-primary/90 transition-all hover:scale-105 shadow-lg"
+                    >
+                        <Heart className="w-5 h-5" fill="currentColor" />
+                        去爱发电支持我们
+                        <ExternalLink className="w-4 h-4" />
+                    </a>
                 </div>
             </div>
 

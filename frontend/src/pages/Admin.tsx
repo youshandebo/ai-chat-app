@@ -627,7 +627,7 @@ const Admin = () => {
                                         实时
                                     </span>
                                 </div>
-                                <h3 className="text-gray-500 dark:text-gray-400 text-sm font-medium">总访客数</h3>
+                                <h3 className="text-gray-500 dark:text-gray-400 text-sm font-medium">总访问量</h3>
                                 <div className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
                                     {metrics?.visitors.toLocaleString() || '-'}
                                 </div>
