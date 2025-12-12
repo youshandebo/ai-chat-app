@@ -373,9 +373,8 @@ start_services() {
     log_info "Starting backend service..."
     cd "$BACK_DIR"
     
-    if pm2 start dist/server.js \
+    if PORT=$BACK_PORT CORS_ORIGIN='*' NODE_ENV=production NODE_OPTIONS='--max-old-space-size=1024' pm2 start dist/server.js \
         --name "$BACK_NAME" \
-        --env PORT=$BACK_PORT,CORS_ORIGIN='*',NODE_ENV=production,NODE_OPTIONS='--max-old-space-size=1024' \
         --merge-logs \
         --max-memory-restart 500M \
         >/dev/null 2>&1; then
@@ -388,9 +387,8 @@ start_services() {
     log_info "Starting frontend service..."
     cd "$FRONT_DIR"
     
-    if pm2 start server.cjs \
+    if PORT=$FRONT_PORT pm2 start server.cjs \
         --name "$FRONT_NAME" \
-        --env PORT=$FRONT_PORT \
         --merge-logs \
         --max-memory-restart 300M \
         >/dev/null 2>&1; then
