@@ -4,9 +4,7 @@ import InteractiveGrid from "../components/InteractiveGrid";
 
 export default function Changelog() {
   return (
-    <div className="relative min-h-full">
-      <div className="absolute inset-0 bg-gray-50 dark:bg-dark-bg -z-20" />
-      <InteractiveGrid />
+    <div className="min-h-full">
       <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="relative z-10 max-w-2xl mx-auto p-6">
         <motion.h2 initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="text-2xl font-bold mb-4">更新公告</motion.h2>
 

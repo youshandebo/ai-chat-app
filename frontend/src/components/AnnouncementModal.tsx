@@ -56,7 +56,7 @@ export default function AnnouncementModal() {
                 <span className="text-sm">24小时内不再显示</span>
               </label>
               <div className="flex gap-2">
-                <button onClick={handleClose} className="px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 transition-colors text-sm font-medium">关闭</button>
+                <button onClick={handleClose} className="px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-white transition-colors text-sm font-medium">关闭</button>
                 <a href="https://afdian.com/a/youshandebo" target="_blank" rel="noreferrer" className="btn-primary text-sm">立即赞助</a>
               </div>
             </div>

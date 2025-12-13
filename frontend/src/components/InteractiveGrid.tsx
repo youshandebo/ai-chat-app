@@ -1,7 +1,7 @@
-import { useEffect, useRef, useState, memo, useCallback } from "react";
+import { useEffect, useRef, useState, memo } from "react";
 
 // Interactive grid with gyroscope support for mobile and random drift when idle
-export default function InteractiveGrid() {
+export default function InteractiveGrid({ className }: { className?: string }) {
     const [mousePos, setMousePos] = useState<{ x: number; y: number } | null>(null);
     const [gyroPos, setGyroPos] = useState<{ x: number; y: number } | null>(null);
     const [size, setSize] = useState({ width: 0, height: 0 });
@@ -98,9 +98,9 @@ export default function InteractiveGrid() {
     const activePos = isMobile ? gyroPos : mousePos;
 
     return (
-        <div className="fixed inset-0 overflow-hidden -z-10 pointer-events-none">
-            <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-white/70 dark:to-dark-bg/70" />
-            <svg className="w-full h-full opacity-40 dark:opacity-30">
+        <div className={`fixed inset-0 overflow-hidden -z-10 pointer-events-none ${className || ''}`}>
+            {/* Background gradient handled by parent or CSS now if needed, or keeping transparent */}
+            <svg className="w-full h-full">
                 {size.width > 0 && Array.from({ length: rows * cols }).map((_, i) => (
                     <GridDot
                         key={i}
@@ -161,11 +161,15 @@ const GridDot = memo(function GridDot({
 
     const r = 2.5 + influence * 5;
     const opacity = 0.25 + influence * 0.6;
-    const color = `rgba(${100 + influence * 55}, ${100 + influence * 55}, ${180 + influence * 75}, ${opacity})`;
+
+    // Removed hardcoded color calculation:
+    // const color = `rgba(${100 + influence * 55}, ${100 + influence * 55}, ${180 + influence * 75}, ${opacity})`;
 
     return (
         <circle
-            cx={cx} cy={cy} r={r} fill={color}
+            cx={cx} cy={cy} r={r}
+            fill="currentColor"
+            fillOpacity={opacity}
             style={{
                 transform: `translate(${tx}px, ${ty}px)`,
                 transformBox: 'fill-box',

@@ -37,7 +37,7 @@ export default function Home() {
     <div className="flex flex-col relative min-h-screen">
       <div className="absolute inset-0 bg-white dark:bg-dark-bg transition-colors duration-300 -z-20" />
       <SEO />
-      <InteractiveGrid />
+      <InteractiveGrid className="text-gray-300 dark:text-gray-700" />
 
       {/* Hero Section */}
       <motion.section
