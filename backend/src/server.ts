@@ -1,5 +1,6 @@
 import express from "express";
 import cors from "cors";
+import path from "path";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
 import winston from "winston";
@@ -34,7 +35,14 @@ logger.info(`Server starting with config:`, {
   CORS_ORIGIN: process.env.CORS_ORIGIN || "[NOT SET]"
 });
 
-app.use(helmet());
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: "cross-origin" }
+}));
+
+// Serve uploaded files
+const uploadsPath = path.join(process.cwd(), '../frontend/public/uploads');
+app.use('/uploads', express.static(uploadsPath));
+
 
 // Improved CORS configuration
 const corsOrigin = process.env.CORS_ORIGIN || "*";
