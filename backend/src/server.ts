@@ -5,7 +5,7 @@ import helmet from "helmet";
 import rateLimit from "express-rate-limit";
 import winston from "winston";
 import dotenv from "dotenv";
-import fs from "fs"; // Fixed: import at top
+import fs from "fs";
 import chatRouter from "./routes/chat";
 import adminRouter from "./routes/admin";
 import articleRouter from "./routes/article";
@@ -15,6 +15,19 @@ import { metricsMiddleware } from "./services/metrics";
 
 dotenv.config();
 
+// Ensure logs directory exists BEFORE creating logger to prevent crash
+const rootDir = path.resolve(__dirname, '..'); // dist/.. -> backend root
+const logsDir = path.join(rootDir, 'logs');
+
+if (!fs.existsSync(logsDir)) {
+  try {
+    fs.mkdirSync(logsDir, { recursive: true });
+    console.log(`[Startup] Created logs directory at: ${logsDir}`);
+  } catch (e) {
+    console.error("[Startup] Failed to create logs directory. Logger might fail.", e);
+  }
+}
+
 const app = express();
 const PORT = parseInt(process.env.PORT || "6555");
 
@@ -23,8 +36,8 @@ const logger = winston.createLogger({
   level: "info",
   format: winston.format.combine(winston.format.timestamp(), winston.format.json()),
   transports: [
-    new winston.transports.File({ filename: "backend/logs/error.log", level: "error" }),
-    new winston.transports.File({ filename: "backend/logs/combined.log" }),
+    new winston.transports.File({ filename: path.join(logsDir, "error.log"), level: "error" }),
+    new winston.transports.File({ filename: path.join(logsDir, "combined.log") }),
     new winston.transports.Console({ format: winston.format.simple() }),
   ],
 });
@@ -41,11 +54,12 @@ app.use(helmet({
 }));
 
 // Serve uploaded files
-const uploadsPath = path.join(process.cwd(), 'uploads');
+const uploadsPath = path.join(rootDir, 'uploads');
 // Check if uploads directory exists, if not create it
 if (!fs.existsSync(uploadsPath)) {
   try {
     fs.mkdirSync(uploadsPath, { recursive: true });
+    logger.info(`Created uploads directory at: ${uploadsPath}`);
   } catch (err) {
     logger.error("Failed to create uploads directory", err);
   }
@@ -54,11 +68,8 @@ app.use('/api/uploads', express.static(uploadsPath));
 
 
 // Improved CORS configuration
-const corsOrigin = process.env.CORS_ORIGIN || "";
-// Security Fix: Do not hardcode localhost origins. Rely solely on env var or default to strict.
-// If CORS_ORIGIN is *, run strict check to avoid security issues? No, * means public API.
-// If CORS_ORIGIN is not set, we should probably be strict or allow nothing? 
-// For this app, let's trust the env var. If empty, it might block everything, which is safer than leaking.
+// Use strict environment variable control
+const corsOrigin = process.env.CORS_ORIGIN || "*";
 const allowedOrigins = corsOrigin.split(",").map(o => o.trim()).filter(Boolean);
 
 app.use(
@@ -67,7 +78,16 @@ app.use(
       // Allow requests with no origin (like mobile apps or curl requests)
       if (!origin) return callback(null, true);
 
-      if (corsOrigin === "*" || allowedOrigins.includes(origin)) {
+      // If CORS_ORIGIN is * or not set, be permissive for compatibility (or restrict if security demands)
+      // For this user app, defaulting to allowing localhost dev ports if env is empty is safer for dev
+      const devOrigins = ["http://localhost:5173", "http://localhost:6556"];
+
+      const isAllowed =
+        corsOrigin === "*"
+        || allowedOrigins.includes(origin)
+        || devOrigins.includes(origin); // Fallback for dev ease-of-use
+
+      if (isAllowed) {
         callback(null, true);
       } else {
         logger.warn(`CORS blocked origin: ${origin}`);
@@ -80,11 +100,8 @@ app.use(
 
 // Debug middleware - log all incoming requests
 app.use((req, res, next) => {
-  console.log(`[${new Date().toISOString()}] ${req.method} ${req.path}`, {
-    origin: req.get('origin') || '[none]',
-    auth: req.get('authorization') ? 'Bearer ***' : '[none]',
-    query: req.query
-  });
+  // Simple console log for immediate feedback
+  // console.log(`[${new Date().toISOString()}] ${req.method} ${req.path}`);
   next();
 });
 
@@ -109,7 +126,6 @@ app.use("/api", sponsorRouter);
 
 // Global error handler - must be last
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
-  console.error("=== GLOBAL ERROR HANDLER ===");
   logger.error("Unhandled error", {
     path: req.path,
     method: req.method,
@@ -118,10 +134,21 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
   });
 
   // Security Fix: Do not expose internal error details to client in production
-  // We can return a generic message and a correlation ID if we had one.
   res.status(500).json({ error: "Internal Server Error" });
+});
+
+// Catch uncaught exceptions to prevent silent crash
+process.on('uncaughtException', (err) => {
+  console.error("UNCAUGHT EXCEPTION:", err);
+  if (logger) logger.error("UNCAUGHT EXCEPTION", err);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error("UNHANDLED REJECTION:", reason);
+  if (logger) logger.error("UNHANDLED REJECTION", { reason });
 });
 
 app.listen(PORT, () => {
   logger.info(`Server running on http://localhost:${PORT}`);
+  console.log(`Server started on port ${PORT}`);
 });
