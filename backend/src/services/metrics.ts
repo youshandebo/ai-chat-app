@@ -140,15 +140,14 @@ function bucketize(range: Range) {
     for (let i = 23; i >= 0; i--) {
       const from = now - (i + 1) * 3600 * 1000;
       const to = now - i * 3600 * 1000;
-      // Use 'to' time for label (the end of the bucket period)
-      // Convert to Beijing Time (Asia/Shanghai)
+      // Use 'to' time for label (the end of the bucket period) in Beijing Time
       const date = new Date(to);
-      const hour = new Intl.DateTimeFormat('en-US', {
+      const label = new Intl.DateTimeFormat('en-US', {
         hour: 'numeric',
         hour12: false,
         timeZone: 'Asia/Shanghai'
       }).format(date);
-      buckets.push({ from, to, label: `${hour}:00` });
+      buckets.push({ from, to, label: `${label}:00` });
     }
   } else if (range === "7d") {
     // Last 7 days, daily buckets
@@ -156,7 +155,12 @@ function bucketize(range: Range) {
       const from = now - (i + 1) * 24 * 3600 * 1000;
       const to = now - i * 24 * 3600 * 1000;
       const date = new Date(from);
-      buckets.push({ from, to, label: `${date.getMonth() + 1}/${date.getDate()}` });
+      const label = new Intl.DateTimeFormat('en-US', {
+        month: 'numeric',
+        day: 'numeric',
+        timeZone: 'Asia/Shanghai'
+      }).format(date);
+      buckets.push({ from, to, label });
     }
   } else if (range === "30d") {
     // Last 30 days, daily buckets
@@ -164,7 +168,12 @@ function bucketize(range: Range) {
       const from = now - (i + 1) * 24 * 3600 * 1000;
       const to = now - i * 24 * 3600 * 1000;
       const date = new Date(from);
-      buckets.push({ from, to, label: `${date.getMonth() + 1}/${date.getDate()}` });
+      const label = new Intl.DateTimeFormat('en-US', {
+        month: 'numeric',
+        day: 'numeric',
+        timeZone: 'Asia/Shanghai'
+      }).format(date);
+      buckets.push({ from, to, label });
     }
   } else if (range === "365d") {
     // Last 12 months, monthly buckets
@@ -179,7 +188,14 @@ function bucketize(range: Range) {
       nextMonth.setMonth(nextMonth.getMonth() + 1);
       const to = nextMonth.getTime();
 
-      buckets.push({ from, to, label: `${d.getFullYear()}/${d.getMonth() + 1}` });
+      // Format YYYY/MM in Beijing Time
+      const label = new Intl.DateTimeFormat('en-CA', {
+        year: 'numeric',
+        month: '2-digit',
+        timeZone: 'Asia/Shanghai'
+      }).format(d).substring(0, 7).replace('-', '/');
+
+      buckets.push({ from, to, label });
     }
   }
   return buckets;

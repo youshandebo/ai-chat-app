@@ -46,7 +46,10 @@ export default function AnnouncementModal() {
             exit={{ y: 50, scale: 0.95 }}
             onClick={(e) => e.stopPropagation()}
           >
-            <div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(ANNOUNCEMENT_HTML) }} />
+            <div
+              className="text-gray-700 dark:text-gray-200 space-y-2 [&_h2]:text-xl [&_h2]:font-bold [&_h2]:text-gray-900 [&_h2]:dark:text-white [&_h3]:font-bold [&_h3]:text-gray-900 [&_h3]:dark:text-white [&_a]:text-blue-600 [&_a]:dark:text-blue-400 [&_a]:underline"
+              dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(ANNOUNCEMENT_HTML) }}
+            />
             <div className="mt-6 flex items-center justify-between">
               <label className="flex items-center gap-2">
                 <input type="checkbox" checked={dontShowAgain} onChange={(e) => setDontShowAgain(e.target.checked)} />

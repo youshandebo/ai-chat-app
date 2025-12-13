@@ -33,7 +33,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   ];
 
   return (
-    <div className="h-screen flex flex-col overflow-hidden bg-gray-50 dark:bg-dark-bg transition-colors duration-300">
+    <div className="h-screen flex flex-col overflow-hidden">
       <nav className="sticky top-0 z-30 bg-white/90 dark:bg-dark-card/90 backdrop-blur border-b border-gray-200 dark:border-dark-border">
         <div className="max-w-6xl mx-auto h-16 flex items-center justify-between px-4 sm:px-6">
           <Link to="/" className="text-xl font-bold bg-gradient-to-r from-primary to-indigo-600 bg-clip-text text-transparent">

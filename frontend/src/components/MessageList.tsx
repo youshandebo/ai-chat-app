@@ -5,8 +5,13 @@ import CodeBlock from "./CodeBlock";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
+import Toast from "./Toast";
+import { useState } from "react";
+
 export default function MessageList() {
   const { chats, currentChatId } = useChatStore();
+  const [toastMsg, setToastMsg] = useState<string | null>(null);
+
   const messages = useMemo(() => {
     const c = chats.find((x) => x.id === currentChatId);
     return c?.messages || [];
@@ -17,6 +22,12 @@ export default function MessageList() {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  const handleCopy = (text: string) => {
+    navigator.clipboard?.writeText(text).then(() => {
+      setToastMsg("已复制到剪贴板");
+    });
+  };
 
   return (
     <div className="py-4 px-6 bg-white dark:bg-dark-card min-h-full">
@@ -83,8 +94,8 @@ export default function MessageList() {
                 <span>{new Date(m.timestamp || Date.now()).toLocaleString()}</span>
                 {m.role === "assistant" && (
                   <button
-                    className="px-2 py-0.5 rounded border border-gray-200 dark:border-dark-border bg-white dark:bg-dark-card hover:bg-gray-100"
-                    onClick={() => navigator.clipboard?.writeText(c)}
+                    className="px-2 py-0.5 rounded border border-gray-200 dark:border-dark-border bg-white dark:bg-dark-card hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                    onClick={() => handleCopy(c)}
                   >
                     复制
                   </button>
@@ -100,6 +111,7 @@ export default function MessageList() {
         );
       })}
       <div ref={messagesEndRef} />
+      <Toast message={toastMsg} onClose={() => setToastMsg(null)} />
     </div>
   );
 }
