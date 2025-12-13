@@ -515,7 +515,7 @@ const Admin = () => {
                 {/* Tooltip */}
                 {hoveredIndex !== null && (
                     <div
-                        className="absolute pointer-events-none z-10 bg-gray-900/95 backdrop-blur-sm text-white text-xs rounded-lg py-2 px-3 shadow-xl transform -translate-x-1/2 -translate-y-full border border-gray-700/50"
+                        className="absolute pointer-events-none z-10 bg-gray-900/95 backdrop-blur-sm text-white text-xs rounded-lg py-2 px-3 shadow-xl transform -translate-x-1/2 -translate-y-full border border-gray-700/50 whitespace-nowrap"
                         style={{
                             left: `${(points[hoveredIndex].x / width) * 100}%`,
                             top: `${(points[hoveredIndex].y / height) * 100}%`,

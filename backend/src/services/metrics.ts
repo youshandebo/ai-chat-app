@@ -141,8 +141,14 @@ function bucketize(range: Range) {
       const from = now - (i + 1) * 3600 * 1000;
       const to = now - i * 3600 * 1000;
       // Use 'to' time for label (the end of the bucket period)
+      // Convert to Beijing Time (Asia/Shanghai)
       const date = new Date(to);
-      buckets.push({ from, to, label: `${date.getHours()}:00` });
+      const hour = new Intl.DateTimeFormat('en-US', {
+        hour: 'numeric',
+        hour12: false,
+        timeZone: 'Asia/Shanghai'
+      }).format(date);
+      buckets.push({ from, to, label: `${hour}:00` });
     }
   } else if (range === "7d") {
     // Last 7 days, daily buckets
