@@ -148,7 +148,7 @@ process.on('unhandledRejection', (reason, promise) => {
   if (logger) logger.error("UNHANDLED REJECTION", { reason });
 });
 
-app.listen(PORT, () => {
-  logger.info(`Server running on http://localhost:${PORT}`);
+app.listen(PORT, "0.0.0.0", () => {
+  logger.info(`Server running on http://0.0.0.0:${PORT}`);
   console.log(`Server started on port ${PORT}`);
 });
