@@ -21,6 +21,9 @@ router.post("/admin/sponsors", requireAdmin, (req, res) => {
         if (!name || !message) {
             return res.status(400).json({ error: "用户名和留言为必填项" });
         }
+        if (name.length > 50) return res.status(400).json({ error: "Name too long (max 50 chars)" });
+        if (message.length > 500) return res.status(400).json({ error: "Message too long (max 500 chars)" });
+
         const sponsor = SponsorService.create({ name, avatar, message, amount });
         res.json(sponsor);
     } catch (e: any) {

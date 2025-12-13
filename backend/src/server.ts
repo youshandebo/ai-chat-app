@@ -5,6 +5,7 @@ import helmet from "helmet";
 import rateLimit from "express-rate-limit";
 import winston from "winston";
 import dotenv from "dotenv";
+import fs from "fs"; // Fixed: import at top
 import chatRouter from "./routes/chat";
 import adminRouter from "./routes/admin";
 import articleRouter from "./routes/article";
@@ -42,18 +43,23 @@ app.use(helmet({
 // Serve uploaded files
 const uploadsPath = path.join(process.cwd(), 'uploads');
 // Check if uploads directory exists, if not create it
-import fs from 'fs';
 if (!fs.existsSync(uploadsPath)) {
-  fs.mkdirSync(uploadsPath, { recursive: true });
+  try {
+    fs.mkdirSync(uploadsPath, { recursive: true });
+  } catch (err) {
+    logger.error("Failed to create uploads directory", err);
+  }
 }
 app.use('/api/uploads', express.static(uploadsPath));
 
 
 // Improved CORS configuration
-const corsOrigin = process.env.CORS_ORIGIN || "*";
-const allowedOrigins = corsOrigin === "*"
-  ? null // Allow all if *
-  : [corsOrigin, "http://localhost:5173", "http://localhost:6556", "http://127.0.0.1:5173", "http://127.0.0.1:6556", "http://[::1]:5173", "http://[::1]:6556"].filter(Boolean);
+const corsOrigin = process.env.CORS_ORIGIN || "";
+// Security Fix: Do not hardcode localhost origins. Rely solely on env var or default to strict.
+// If CORS_ORIGIN is *, run strict check to avoid security issues? No, * means public API.
+// If CORS_ORIGIN is not set, we should probably be strict or allow nothing? 
+// For this app, let's trust the env var. If empty, it might block everything, which is safer than leaking.
+const allowedOrigins = corsOrigin.split(",").map(o => o.trim()).filter(Boolean);
 
 app.use(
   cors({
@@ -61,7 +67,7 @@ app.use(
       // Allow requests with no origin (like mobile apps or curl requests)
       if (!origin) return callback(null, true);
 
-      if (!allowedOrigins || allowedOrigins.includes(origin)) {
+      if (corsOrigin === "*" || allowedOrigins.includes(origin)) {
         callback(null, true);
       } else {
         logger.warn(`CORS blocked origin: ${origin}`);
@@ -104,15 +110,6 @@ app.use("/api", sponsorRouter);
 // Global error handler - must be last
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
   console.error("=== GLOBAL ERROR HANDLER ===");
-  console.error("Path:", req.path);
-  console.error("Method:", req.method);
-  console.error("Query:", req.query);
-  console.error("Body:", req.body);
-  console.error("Headers:", req.headers);
-  console.error("Error:", err.message);
-  console.error("Stack:", err.stack);
-  console.error("===========================");
-
   logger.error("Unhandled error", {
     path: req.path,
     method: req.method,
@@ -120,7 +117,9 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
     stack: err.stack
   });
 
-  res.status(500).json({ error: "Internal Server Error", details: err.message });
+  // Security Fix: Do not expose internal error details to client in production
+  // We can return a generic message and a correlation ID if we had one.
+  res.status(500).json({ error: "Internal Server Error" });
 });
 
 app.listen(PORT, () => {

@@ -43,6 +43,11 @@ router.post("/admin/articles", requireAdmin, (req, res) => {
             return res.status(400).json({ error: "Title and content are required" });
         }
 
+        if (title.length > 100) return res.status(400).json({ error: "Title too long (max 100 chars)" });
+        // Content limit handled by JSON parser 2MB limit roughly, but let's add logical check
+        if (content.length > 50000) return res.status(400).json({ error: "Content too long (max 50000 chars)" });
+
+
         const article = createArticle({
             title,
             content,
