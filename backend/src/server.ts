@@ -41,7 +41,7 @@ app.use(helmet({
 
 // Serve uploaded files
 const uploadsPath = path.join(process.cwd(), '../frontend/public/uploads');
-app.use('/uploads', express.static(uploadsPath));
+app.use('/api/uploads', express.static(uploadsPath));
 
 
 // Improved CORS configuration

@@ -417,9 +417,11 @@ const Admin = () => {
         const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
         const maxVal = Math.max(...data.map(d => (d[metricType] as number) || 0), 1);
 
-        const height = 256;
         const width = 1000;
-        const padding = 20;
+        const height = 300;
+        const margin = { top: 20, right: 20, bottom: 40, left: 60 };
+        const chartWidth = width - margin.left - margin.right;
+        const chartHeight = height - margin.top - margin.bottom;
 
         // Color mapping for different metrics
         const colorMap: Record<string, { stroke: string; fill: string; text: string }> = {
@@ -433,8 +435,8 @@ const Admin = () => {
         const currentColor = colorMap[metricType] || colorMap.visits;
 
         const points = data.map((d, i) => {
-            const x = (i / (data.length - 1)) * width;
-            const y = height - ((d[metricType] as number || 0) / maxVal) * (height - padding * 2) - padding;
+            const x = margin.left + (i / (data.length - 1)) * chartWidth;
+            const y = margin.top + chartHeight - ((d[metricType] as number || 0) / maxVal) * chartHeight;
             return { x, y, val: d[metricType], label: d.label };
         });
 
@@ -442,23 +444,38 @@ const Admin = () => {
             ? `M ${points.map(p => `${p.x},${p.y}`).join(' L ')}`
             : '';
 
+        const yTicks = 5;
+
         return (
-            <div className="relative w-full">
-                <svg viewBox={`0 0 ${width} ${height}`} className="w-full">
-                    {/* Grid lines */}
-                    {[...Array(5)].map((_, i) => {
-                        const y = padding + (i / 4) * (height - padding * 2);
+            <div className="relative w-full select-none">
+                <svg viewBox={`0 0 ${width} ${height}`} className="w-full text-gray-400 dark:text-gray-500 text-xs font-mono">
+                    {/* Grid lines and Y-axis Labels */}
+                    {[...Array(yTicks + 1)].map((_, i) => {
+                        const val = Math.round((maxVal / yTicks) * i);
+                        const y = margin.top + chartHeight - (i / yTicks) * chartHeight;
                         return (
-                            <line key={i} x1="0" y1={y} x2={width} y2={y} stroke="currentColor" strokeWidth="0.5" opacity="0.1" />
+                            <g key={i}>
+                                <line x1={margin.left} y1={y} x2={width - margin.right} y2={y} stroke="currentColor" strokeWidth="1" opacity="0.1" />
+                                <text x={margin.left - 12} y={y + 4} textAnchor="end" fill="currentColor">{val}</text>
+                            </g>
                         );
                     })}
+
+                    {/* X-axis Labels */}
+                    {points.filter((_, i) => i % Math.ceil(points.length / 8) === 0 || i === points.length - 1).map((p, i) => (
+                        <text key={i} x={p.x} y={height - 10} textAnchor="middle" fill="currentColor">{p.label.split(' ')[1] || p.label}</text>
+                    ))}
+
+                    {/* Axes Lines */}
+                    <line x1={margin.left} y1={margin.top} x2={margin.left} y2={height - margin.bottom} stroke="currentColor" strokeWidth="1" opacity="0.3" />
+                    <line x1={margin.left} y1={height - margin.bottom} x2={width - margin.right} y2={height - margin.bottom} stroke="currentColor" strokeWidth="1" opacity="0.3" />
 
                     {/* Area fill */}
                     {points.length > 1 && (
                         <path
-                            d={`${pathD} L ${points[points.length - 1].x},${height} L ${points[0].x},${height} Z`}
+                            d={`${pathD} L ${points[points.length - 1].x},${height - margin.bottom} L ${points[0].x},${height - margin.bottom} Z`}
                             fill={currentColor.fill}
-                            opacity="0.2"
+                            opacity="0.15"
                         />
                     )}
 
@@ -469,39 +486,47 @@ const Admin = () => {
                             fill="none"
                             stroke={currentColor.stroke}
                             strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
                             initial={{ pathLength: 0, opacity: 0 }}
                             animate={{ pathLength: 1, opacity: 1 }}
                             transition={{ duration: 1.5, ease: "easeInOut" }}
                         />
                     )}
 
-                    {/* Points */}
+                    {/* Interactive Points - Invisible but hoverable area */}
                     {points.map((p, i) => (
-                        <circle
-                            key={i}
-                            cx={p.x}
-                            cy={p.y}
-                            r={hoveredIndex === i ? 6 : 4}
-                            fill={currentColor.fill}
-                            className="cursor-pointer transition-all"
-                            onMouseEnter={() => setHoveredIndex(i)}
-                            onMouseLeave={() => setHoveredIndex(null)}
-                        />
+                        <g key={i} onMouseEnter={() => setHoveredIndex(i)} onMouseLeave={() => setHoveredIndex(null)} className="cursor-pointer">
+                            <circle
+                                cx={p.x}
+                                cy={p.y}
+                                r={hoveredIndex === i ? 6 : 0}
+                                fill={currentColor.fill}
+                                stroke="white"
+                                strokeWidth="2"
+                                className="transition-all duration-200"
+                            />
+                            {/* Larger invisible touch target */}
+                            <circle cx={p.x} cy={p.y} r={10} fill="transparent" />
+                        </g>
                     ))}
                 </svg>
 
                 {/* Tooltip */}
                 {hoveredIndex !== null && (
                     <div
-                        className="absolute pointer-events-none z-10 bg-gray-900 text-white text-xs rounded py-1 px-2 shadow-lg transform -translate-x-1/2 -translate-y-full"
+                        className="absolute pointer-events-none z-10 bg-gray-900/95 backdrop-blur-sm text-white text-xs rounded-lg py-2 px-3 shadow-xl transform -translate-x-1/2 -translate-y-full border border-gray-700/50"
                         style={{
-                            left: `${(hoveredIndex / (points.length - 1)) * 100}%`,
+                            left: `${(points[hoveredIndex].x / width) * 100}%`,
                             top: `${(points[hoveredIndex].y / height) * 100}%`,
-                            marginTop: '-10px'
+                            marginTop: '-16px'
                         }}
                     >
-                        <div className="font-bold whitespace-nowrap">{points[hoveredIndex].label}</div>
-                        <div className="whitespace-nowrap">{currentColor.text}: {points[hoveredIndex].val}</div>
+                        <div className="font-bold mb-1 border-b border-gray-700 pb-1">{points[hoveredIndex].label}</div>
+                        <div className="flex items-center gap-2 pt-1">
+                            <div className="w-2 h-2 rounded-full" style={{ background: currentColor.fill }}></div>
+                            <span className="font-mono">{currentColor.text}: {points[hoveredIndex].val}</span>
+                        </div>
                     </div>
                 )}
             </div>
@@ -734,7 +759,10 @@ const Admin = () => {
                                 </div>
                             )}
                             {metrics && metrics.series && metrics.series.length > 0 && (
-                                <Chart data={metrics.series} metricType={metricType} />
+                                <>
+                                    <div className="border-b border-gray-100 dark:border-dark-border mb-6"></div>
+                                    <Chart data={metrics.series} metricType={metricType} />
+                                </>
                             )}
                         </div>
 

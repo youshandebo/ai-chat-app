@@ -59,7 +59,7 @@ router.post('/upload-image', requireAdmin, upload.single('image'), async (req: e
             .webp({ quality: 85 })
             .toFile(outputPath);
 
-        const publicUrl = `/uploads/${filename}`;
+        const publicUrl = `/api/uploads/${filename}`;
         res.json({
             url: publicUrl,
             filename: filename
@@ -91,7 +91,7 @@ router.post('/upload-avatar', requireAdmin, upload.single('image'), async (req: 
             .webp({ quality: 90 })
             .toFile(outputPath);
 
-        const publicUrl = `/uploads/${filename}`;
+        const publicUrl = `/api/uploads/${filename}`;
         res.json({
             url: publicUrl,
             filename: filename
