@@ -1,12 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
+import { Copy, Check, Code2 } from "lucide-react";
 
 type Props = { code: string; language?: string };
 
 export default function CodeBlock({ code, language }: Props) {
   const [html, setHtml] = useState<string>("");
   const lang = useMemo(() => (language && language.trim() ? language.trim().toLowerCase() : "plaintext"), [language]);
-
-  const isDark = useMemo(() => document.documentElement.classList.contains("dark"), []);
 
   useEffect(() => {
     let mounted = true;
@@ -26,12 +25,8 @@ export default function CodeBlock({ code, language }: Props) {
           import("prismjs/components/prism-css"),
           import("prismjs/components/prism-sql"),
           import("prismjs/components/prism-bash"),
+          import("prismjs/components/prism-json"),
         ]);
-        if (isDark) {
-          await import("prism-themes/themes/prism-vsc-dark-plus.css");
-        } else {
-          await import("prismjs/themes/prism.css");
-        }
         const grammar = Prism.languages[lang] || Prism.languages.plaintext;
         const highlighted = Prism.highlight(code, grammar, lang);
         if (mounted) setHtml(highlighted);
@@ -43,7 +38,7 @@ export default function CodeBlock({ code, language }: Props) {
     return () => {
       mounted = false;
     };
-  }, [code, lang, isDark]);
+  }, [code, lang]);
 
   const [copied, setCopied] = useState(false);
   const onCopy = async () => {
@@ -66,17 +61,44 @@ export default function CodeBlock({ code, language }: Props) {
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const lineCount = code.split('\n').length;
+
   return (
-    <div className="code-block-wrapper">
+    <div className="code-block-wrapper group">
       <div className="code-header">
-        <span className="language-tag">{lang.toUpperCase()}</span>
-        <button className={`copy-button ${copied ? "copied" : ""}`} onClick={onCopy} aria-label={copied ? "已复制" : "复制代码"}>
-          {copied ? "✅ 已复制" : "📋 复制"}
+        <div className="flex items-center gap-2">
+          <Code2 className="w-4 h-4 text-primary" />
+          <span className="language-tag">{lang.toUpperCase()}</span>
+          <span className="text-xs text-gray-500 dark:text-gray-400">{lineCount} 行</span>
+        </div>
+        <button
+          className={`copy-button ${copied ? "copied" : ""}`}
+          onClick={onCopy}
+          aria-label={copied ? "已复制" : "复制代码"}
+        >
+          {copied ? (
+            <>
+              <Check className="w-4 h-4" />
+              <span>已复制</span>
+            </>
+          ) : (
+            <>
+              <Copy className="w-4 h-4" />
+              <span>复制</span>
+            </>
+          )}
         </button>
       </div>
-      <pre>
-        {html ? <code dangerouslySetInnerHTML={{ __html: html }} /> : <code>{code}</code>}
-      </pre>
+      <div className="code-content">
+        <div className="line-numbers" aria-hidden="true">
+          {Array.from({ length: lineCount }, (_, i) => (
+            <span key={i}>{i + 1}</span>
+          ))}
+        </div>
+        <pre>
+          {html ? <code dangerouslySetInnerHTML={{ __html: html }} /> : <code>{code}</code>}
+        </pre>
+      </div>
     </div>
   );
 }

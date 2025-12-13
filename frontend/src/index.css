@@ -2,74 +2,79 @@
 @tailwind components;
 @tailwind utilities;
 
-@layer base {
-
-  html,
-  body,
-  #root {
-    height: 100%;
-    margin: 0;
-    padding: 0;
-  }
-
-  body {
-    @apply bg-gray-50 text-gray-900 dark:bg-dark-bg dark:text-dark-text;
-  }
+html,
+body,
+#root {
+  height: 100%;
+  min-height: 100vh;
 }
 
-@layer utilities {
-
-  /* Custom Scrollbar */
-  ::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
-  }
-
-  ::-webkit-scrollbar-track {
-    background: transparent;
-  }
-
-  ::-webkit-scrollbar-thumb {
-    @apply bg-gray-300 dark:bg-gray-600 rounded-full;
-  }
-
-  ::-webkit-scrollbar-thumb:hover {
-    @apply bg-gray-400 dark:bg-gray-500;
-  }
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
 }
 
-/* Improved Code Block Styles - Harmonious with bubbles but sufficient contrast */
+::-webkit-scrollbar-track {
+  @apply bg-gray-100 dark:bg-dark-bg;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-gray-300 dark:bg-gray-600 rounded-full;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-gray-400 dark:bg-gray-500;
+}
+
+/* Markdown prose */
+.prose pre {
+  @apply bg-transparent p-0 m-0;
+}
+
+.markdown-body {
+  @apply text-gray-800 dark:text-gray-200;
+}
+
+.markdown-body a {
+  @apply text-primary hover:underline;
+}
+
+/* =============================================== */
+/* Premium Code Block Styles                       */
+/* =============================================== */
+
 .code-block-wrapper {
   margin: 16px 0;
   border-radius: 12px;
   overflow: hidden;
-  border: 1px solid rgba(0, 180, 255, 0.2);
-  /* Dark mode: slightly lighter/darker than bubble (#1e1e2e -> #272733) */
-  background: #1e1e2e;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
-}
-
-.dark .code-block-wrapper {
-  background: #181825;
-  /* Slightly darker than standard dark card for "inset" feel */
-  border-color: rgba(255, 255, 255, 0.1);
+  background: linear-gradient(145deg, #1a1b26 0%, #16161e 100%);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow:
+    0 4px 20px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 
 .light .code-block-wrapper {
-  background: #ffffff;
-  /* Crisp white for light mode, distinct from gray-50/100 bubbles */
+  background: linear-gradient(145deg, #fafafa 0%, #f3f4f6 100%);
   border: 1px solid #e5e7eb;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  box-shadow:
+    0 4px 12px rgba(0, 0, 0, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8);
 }
 
 .code-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 10px 16px;
-  background: linear-gradient(90deg, rgba(0, 180, 255, 0.15) 0%, rgba(0, 200, 255, 0.1) 100%);
-  border-bottom: 1px solid rgba(0, 180, 255, 0.1);
-  font-size: 13px;
+  padding: 12px 16px;
+  background: rgba(255, 255, 255, 0.03);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.light .code-header {
+  background: rgba(0, 0, 0, 0.02);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
 }
 
 .language-tag {
@@ -77,66 +82,103 @@
   text-transform: uppercase;
   font-weight: 700;
   font-size: 11px;
-  letter-spacing: 0.5px;
-  padding: 3px 8px;
-  background: rgba(0, 180, 255, 0.2);
-  border-radius: 4px;
+  letter-spacing: 0.75px;
+  padding: 4px 10px;
+  background: rgba(0, 180, 255, 0.15);
+  border-radius: 6px;
+  border: 1px solid rgba(0, 180, 255, 0.2);
 }
 
 .light .language-tag {
-  color: #0091EA;
+  color: #0284c7;
   background: rgba(0, 180, 255, 0.1);
+  border-color: rgba(0, 180, 255, 0.15);
 }
 
 .copy-button {
-  background: rgba(0, 180, 255, 0.15);
-  border: 1px solid rgba(0, 180, 255, 0.3);
-  color: #00B4FF;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #a1a1aa;
   cursor: pointer;
-  padding: 6px 12px;
-  border-radius: 6px;
+  padding: 8px 14px;
+  border-radius: 8px;
   font-size: 12px;
   font-weight: 500;
   transition: all 0.2s ease;
 }
 
 .copy-button:hover {
-  background: rgba(0, 180, 255, 0.3);
-  color: #fff;
+  background: rgba(0, 180, 255, 0.15);
+  border-color: rgba(0, 180, 255, 0.3);
+  color: #00B4FF;
   transform: translateY(-1px);
 }
 
 .copy-button.copied {
-  background: rgba(34, 197, 94, 0.2);
-  border-color: rgba(34, 197, 94, 0.4);
+  background: rgba(34, 197, 94, 0.15);
+  border-color: rgba(34, 197, 94, 0.3);
   color: #22c55e;
 }
 
 .light .copy-button {
-  color: #0091EA;
+  background: rgba(0, 0, 0, 0.03);
+  border-color: rgba(0, 0, 0, 0.1);
+  color: #71717a;
+}
+
+.light .copy-button:hover {
+  background: rgba(0, 180, 255, 0.1);
+  color: #0284c7;
+}
+
+.code-content {
+  display: flex;
+  overflow-x: auto;
+}
+
+.line-numbers {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 20px 0;
+  text-align: right;
+  font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', 'Monaco', monospace;
+  font-size: 13px;
+  line-height: 1.7;
+  user-select: none;
+  color: #4a5568;
+  background: rgba(0, 0, 0, 0.2);
+  border-right: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.line-numbers span {
+  padding: 0 12px;
+  min-width: 40px;
+}
+
+.light .line-numbers {
+  background: rgba(0, 0, 0, 0.03);
+  border-right: 1px solid rgba(0, 0, 0, 0.05);
+  color: #9ca3af;
 }
 
 .code-block-wrapper pre {
+  flex: 1;
   margin: 0;
   padding: 20px 24px;
   overflow-x: auto;
   font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', 'Monaco', monospace;
-  font-size: 14px;
+  font-size: 13px;
   line-height: 1.7;
   tab-size: 2;
-  background: #1e1e2e;
-}
-
-.dark .code-block-wrapper pre {
-  background: #181825;
-}
-
-.light .code-block-wrapper pre {
-  background: #f8fafc;
+  background: transparent;
 }
 
 .code-block-wrapper pre code {
-  color: #e2e8f0;
+  color: #e4e4e7;
   background: transparent;
   display: block;
   white-space: pre;
@@ -146,17 +188,17 @@
   color: #1e293b;
 }
 
-/* Prism Token Colors - Dark Theme */
+/* Prism Token Colors - Tokyo Night Theme */
 .token.comment,
 .token.prolog,
 .token.doctype,
 .token.cdata {
-  color: #6b7280;
+  color: #565f89;
   font-style: italic;
 }
 
 .token.punctuation {
-  color: #9ca3af;
+  color: #9aa5ce;
 }
 
 .token.property,
@@ -166,7 +208,7 @@
 .token.constant,
 .token.symbol,
 .token.deleted {
-  color: #f472b6;
+  color: #ff9e64;
 }
 
 .token.selector,
@@ -175,7 +217,7 @@
 .token.char,
 .token.builtin,
 .token.inserted {
-  color: #34d399;
+  color: #9ece6a;
 }
 
 .token.operator,
@@ -183,24 +225,70 @@
 .token.url,
 .language-css .token.string,
 .style .token.string {
-  color: #fbbf24;
+  color: #89ddff;
 }
 
 .token.atrule,
 .token.attr-value,
 .token.keyword {
-  color: #818cf8;
+  color: #bb9af7;
 }
 
 .token.function,
 .token.class-name {
-  color: #60a5fa;
+  color: #7aa2f7;
 }
 
 .token.regex,
 .token.important,
 .token.variable {
-  color: #fb923c;
+  color: #f7768e;
+}
+
+/* Light mode token overrides */
+.light .token.comment,
+.light .token.prolog,
+.light .token.doctype,
+.light .token.cdata {
+  color: #6a737d;
+}
+
+.light .token.punctuation {
+  color: #24292e;
+}
+
+.light .token.property,
+.light .token.tag,
+.light .token.boolean,
+.light .token.number,
+.light .token.constant,
+.light .token.symbol {
+  color: #d73a49;
+}
+
+.light .token.selector,
+.light .token.attr-name,
+.light .token.string,
+.light .token.char,
+.light .token.builtin {
+  color: #22863a;
+}
+
+.light .token.operator,
+.light .token.entity,
+.light .token.url {
+  color: #005cc5;
+}
+
+.light .token.atrule,
+.light .token.attr-value,
+.light .token.keyword {
+  color: #6f42c1;
+}
+
+.light .token.function,
+.light .token.class-name {
+  color: #005cc5;
 }
 
 pre {
