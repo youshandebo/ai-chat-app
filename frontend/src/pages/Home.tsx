@@ -34,7 +34,8 @@ export default function Home() {
   }, []);
 
   return (
-    <div className="flex flex-col relative min-h-screen bg-white dark:bg-dark-bg transition-colors duration-300">
+    <div className="flex flex-col relative min-h-screen">
+      <div className="absolute inset-0 bg-white dark:bg-dark-bg transition-colors duration-300 -z-20" />
       <SEO />
       <InteractiveGrid />
 
