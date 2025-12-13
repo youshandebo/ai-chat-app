@@ -51,13 +51,18 @@ export default function AnnouncementModal() {
               dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(ANNOUNCEMENT_HTML) }}
             />
             <div className="mt-6 flex items-center justify-between">
-              <label className="flex items-center gap-2 text-gray-700 dark:text-gray-300">
-                <input type="checkbox" checked={dontShowAgain} onChange={(e) => setDontShowAgain(e.target.checked)} />
-                <span className="text-sm">24小时内不再显示</span>
+              <label className="flex items-center gap-2 cursor-pointer select-none">
+                <input type="checkbox" checked={dontShowAgain} onChange={(e) => setDontShowAgain(e.target.checked)} className="rounded border-gray-300 text-primary focus:ring-primary" />
+                <span className="text-sm font-medium text-gray-600 dark:text-gray-300">24小时内不再显示</span>
               </label>
               <div className="flex gap-2">
-                <button onClick={handleClose} className="px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-white transition-colors text-sm font-medium">关闭</button>
-                <a href="https://afdian.com/a/youshandebo" target="_blank" rel="noreferrer" className="btn-primary text-sm">立即赞助</a>
+                <button
+                  onClick={handleClose}
+                  className="px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-dark-card hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-white transition-all text-sm font-semibold shadow-sm"
+                >
+                  关闭
+                </button>
+                <a href="https://afdian.com/a/youshandebo" target="_blank" rel="noreferrer" className="btn-primary text-sm shadow-sm">立即赞助</a>
               </div>
             </div>
           </motion.div>

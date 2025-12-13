@@ -21,6 +21,7 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    console.log("Home loaded. Version: 2025-12-13 Fix Particles");
     fetch('/api/articles')
       .then(res => res.json())
       .then(data => {
