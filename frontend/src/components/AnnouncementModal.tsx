@@ -62,7 +62,14 @@ export default function AnnouncementModal() {
                 >
                   关闭
                 </button>
-                <a href="https://afdian.com/a/youshandebo" target="_blank" rel="noreferrer" className="btn-primary text-sm shadow-sm">立即赞助</a>
+                <a
+                  href="https://afdian.com/a/youshandebo"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white transition-all text-sm font-bold shadow-sm inline-block"
+                >
+                  立即赞助
+                </a>
               </div>
             </div>
           </motion.div>
