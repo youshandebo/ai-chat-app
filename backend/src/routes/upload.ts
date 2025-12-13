@@ -24,18 +24,13 @@ const upload = multer({
 });
 
 // Auth middleware
-const requireAdmin = (req: express.Request, res: express.Response, next: express.NextFunction) => {
-    const auth = (req.get("authorization") || "").trim();
-    const token = process.env.ADMIN_TOKEN || "";
-    if (auth !== `Bearer ${token}`) {
-        return res.status(403).json({ error: "无权访问" });
-    }
-    next();
-};
+import { requireAdmin } from "../middleware/auth";
 
 // Helper: ensure upload directory exists
 const ensureUploadDir = () => {
-    const uploadDir = path.join(process.cwd(), '../frontend/public/uploads');
+    // Use uploads directory in backend root (runtime directory)
+    // This decouples from frontend and persists uploads in backend/uploads
+    const uploadDir = path.join(process.cwd(), 'uploads');
     if (!fs.existsSync(uploadDir)) {
         fs.mkdirSync(uploadDir, { recursive: true });
     }

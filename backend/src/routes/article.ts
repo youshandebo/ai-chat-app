@@ -1,5 +1,6 @@
 import express from "express";
 import { getArticles, getArticle, createArticle, updateArticle, deleteArticle } from "../services/articles";
+import { requireAdmin } from "../middleware/auth";
 
 const router = express.Router();
 
@@ -26,13 +27,7 @@ router.get("/articles/:id", (req, res) => {
 });
 
 // Admin routes - require authentication
-router.get("/admin/articles", (req, res) => {
-    const auth = (req.get("authorization") || "").trim();
-    const token = process.env.ADMIN_TOKEN || "";
-    if (auth !== `Bearer ${token}`) {
-        return res.status(403).json({ error: "无权访问" });
-    }
-
+router.get("/admin/articles", requireAdmin, (req, res) => {
     try {
         const articles = getArticles(false);  // All articles
         res.json(articles);
@@ -41,13 +36,7 @@ router.get("/admin/articles", (req, res) => {
     }
 });
 
-router.post("/admin/articles", (req, res) => {
-    const auth = (req.get("authorization") || "").trim();
-    const token = process.env.ADMIN_TOKEN || "";
-    if (auth !== `Bearer ${token}`) {
-        return res.status(403).json({ error: "无权访问" });
-    }
-
+router.post("/admin/articles", requireAdmin, (req, res) => {
     try {
         const { title, content, author, published, tags } = req.body;
         if (!title || !content) {
@@ -67,13 +56,7 @@ router.post("/admin/articles", (req, res) => {
     }
 });
 
-router.put("/admin/articles/:id", (req, res) => {
-    const auth = (req.get("authorization") || "").trim();
-    const token = process.env.ADMIN_TOKEN || "";
-    if (auth !== `Bearer ${token}`) {
-        return res.status(403).json({ error: "无权访问" });
-    }
-
+router.put("/admin/articles/:id", requireAdmin, (req, res) => {
     try {
         const article = updateArticle(req.params.id, req.body);
         if (!article) {
@@ -85,13 +68,7 @@ router.put("/admin/articles/:id", (req, res) => {
     }
 });
 
-router.delete("/admin/articles/:id", (req, res) => {
-    const auth = (req.get("authorization") || "").trim();
-    const token = process.env.ADMIN_TOKEN || "";
-    if (auth !== `Bearer ${token}`) {
-        return res.status(403).json({ error: "无权访问" });
-    }
-
+router.delete("/admin/articles/:id", requireAdmin, (req, res) => {
     try {
         const success = deleteArticle(req.params.id);
         if (!success) {

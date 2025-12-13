@@ -40,7 +40,12 @@ app.use(helmet({
 }));
 
 // Serve uploaded files
-const uploadsPath = path.join(process.cwd(), '../frontend/public/uploads');
+const uploadsPath = path.join(process.cwd(), 'uploads');
+// Check if uploads directory exists, if not create it
+import fs from 'fs';
+if (!fs.existsSync(uploadsPath)) {
+  fs.mkdirSync(uploadsPath, { recursive: true });
+}
 app.use('/api/uploads', express.static(uploadsPath));
 
 

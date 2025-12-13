@@ -1,5 +1,6 @@
 import express from "express";
 import { SponsorService } from "../services/sponsorService";
+import { requireAdmin } from "../middleware/auth";
 
 const router = express.Router();
 
@@ -14,13 +15,7 @@ router.get("/sponsors", (req, res) => {
 });
 
 // Admin: Create sponsor
-router.post("/admin/sponsors", (req, res) => {
-    const auth = (req.get("authorization") || (req.headers["authorization"] as string) || "").trim();
-    const token = process.env.ADMIN_TOKEN || "";
-    if (auth !== `Bearer ${token}`) {
-        return res.status(403).json({ error: "无权访问" });
-    }
-
+router.post("/admin/sponsors", requireAdmin, (req, res) => {
     try {
         const { name, avatar, message, amount } = req.body;
         if (!name || !message) {
@@ -34,13 +29,7 @@ router.post("/admin/sponsors", (req, res) => {
 });
 
 // Admin: Update sponsor
-router.put("/admin/sponsors/:id", (req, res) => {
-    const auth = (req.get("authorization") || (req.headers["authorization"] as string) || "").trim();
-    const token = process.env.ADMIN_TOKEN || "";
-    if (auth !== `Bearer ${token}`) {
-        return res.status(403).json({ error: "无权访问" });
-    }
-
+router.put("/admin/sponsors/:id", requireAdmin, (req, res) => {
     try {
         const updated = SponsorService.update(req.params.id, req.body);
         if (!updated) return res.status(404).json({ error: "Sponsor not found" });
@@ -51,13 +40,7 @@ router.put("/admin/sponsors/:id", (req, res) => {
 });
 
 // Admin: Delete sponsor
-router.delete("/admin/sponsors/:id", (req, res) => {
-    const auth = (req.get("authorization") || (req.headers["authorization"] as string) || "").trim();
-    const token = process.env.ADMIN_TOKEN || "";
-    if (auth !== `Bearer ${token}`) {
-        return res.status(403).json({ error: "无权访问" });
-    }
-
+router.delete("/admin/sponsors/:id", requireAdmin, (req, res) => {
     try {
         const success = SponsorService.delete(req.params.id);
         if (!success) return res.status(404).json({ error: "Sponsor not found" });
