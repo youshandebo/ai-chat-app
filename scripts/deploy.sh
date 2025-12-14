@@ -499,6 +499,24 @@ server {
     listen 80;
     server_name $SERVER_NAME;
 
+    # Gzip Compression
+    gzip on;
+    gzip_vary on;
+    gzip_proxied any;
+    gzip_comp_level 6;
+    gzip_types text/plain text/css text/xml application/json application/javascript application/rss+xml application/atom+xml image/svg+xml;
+
+    # Static Assets Caching (Long-term)
+    location /assets/ {
+        proxy_pass http://127.0.0.1:$FRONT_PORT;
+        proxy_http_version 1.1;
+        proxy_set_header Host \\\$host;
+        proxy_cache_bypass \\\$http_upgrade;
+        
+        # Cache-Control: 1 year, immutable
+        add_header Cache-Control "public, max-age=31536000, immutable";
+    }
+
     # Frontend Proxy (WebSocket support)
     location / {
         proxy_pass http://127.0.0.1:$FRONT_PORT;
@@ -516,6 +534,8 @@ server {
         proxy_set_header Host \\\$host;
         proxy_set_header X-Real-IP \\\$remote_addr;
         proxy_set_header X-Forwarded-For \\\$proxy_add_x_forwarded_for;
+        
+        # API doesn't cache by default
     }
 }
 EOF"

@@ -66,8 +66,12 @@ server {
     listen [::]:$LISTEN_PORT;
     server_name $DOMAIN www.$DOMAIN;
     
-    # 禁用 gzip 压缩（可选）
-    # gzip off;
+    # Gzip Compression
+    gzip on;
+    gzip_vary on;
+    gzip_proxied any;
+    gzip_comp_level 6;
+    gzip_types text/plain text/css text/xml application/json application/javascript application/rss+xml application/atom+xml image/svg+xml;
     
     # 前端应用
     location / {
