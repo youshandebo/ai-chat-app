@@ -34,7 +34,8 @@ export default function Sidebar() {
     return `${d.getFullYear()}年${pad(d.getMonth() + 1)}月${pad(d.getDate())}日${pad(d.getHours())}:${pad(d.getMinutes())}`;
   };
 
-  const SidebarContent = () => (
+  // Render content directly as a variable to avoid nested component issues
+  const sidebarContent = (
     <>
       <button
         className="mb-4 w-full bg-primary text-white p-3 rounded-xl hover:bg-primary/90 transition-colors flex items-center justify-center gap-2 font-medium shadow-sm"

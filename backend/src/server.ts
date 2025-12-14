@@ -56,7 +56,7 @@ app.use(helmet({
 }));
 
 // Enable Gzip/Brotli compression
-// app.use(compression());
+app.use(compression());
 
 // Serve uploaded files
 const uploadsPath = path.join(rootDir, 'uploads');
