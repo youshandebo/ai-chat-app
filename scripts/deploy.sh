@@ -494,7 +494,10 @@ update_nginx_config() {
 
         # Write new config with PROPERLY ESCAPED VARIABLES
         # We use \ to escape $ so it's written literally to the file for Nginx to use
-        sudo bash -c "cat > $CONFIG_FILE << EOF
+        # Write new config using tee to avoid quote escaping hell
+        # Variables like $SERVER_NAME are expanded by shell
+        # Nginx variables like $host must be escaped as \$host
+        cat << EOF | sudo tee $CONFIG_FILE > /dev/null
 server {
     listen 80;
     server_name $SERVER_NAME;
@@ -510,8 +513,8 @@ server {
     location /assets/ {
         proxy_pass http://127.0.0.1:$FRONT_PORT;
         proxy_http_version 1.1;
-        proxy_set_header Host \\\$host;
-        proxy_cache_bypass \\\$http_upgrade;
+        proxy_set_header Host \$host;
+        proxy_cache_bypass \$http_upgrade;
         
         # Cache-Control: 1 year, immutable
         add_header Cache-Control "public, max-age=31536000, immutable";
@@ -521,24 +524,24 @@ server {
     location / {
         proxy_pass http://127.0.0.1:$FRONT_PORT;
         proxy_http_version 1.1;
-        proxy_set_header Upgrade \\\$http_upgrade;
+        proxy_set_header Upgrade \$http_upgrade;
         proxy_set_header Connection 'upgrade';
-        proxy_set_header Host \\\$host;
-        proxy_cache_bypass \\\$http_upgrade;
+        proxy_set_header Host \$host;
+        proxy_cache_bypass \$http_upgrade;
     }
 
     # Backend API Proxy
     location /api {
         proxy_pass http://127.0.0.1:$BACK_PORT;
         proxy_http_version 1.1;
-        proxy_set_header Host \\\$host;
-        proxy_set_header X-Real-IP \\\$remote_addr;
-        proxy_set_header X-Forwarded-For \\\$proxy_add_x_forwarded_for;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
         
         # API doesn't cache by default
     }
 }
-EOF"
+EOF
         
         # DEBUG: Print the generated config
         log_info "Generated Nginx Config:"
