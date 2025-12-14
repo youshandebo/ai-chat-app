@@ -29,10 +29,14 @@ function ensureLoaded() {
     }
 }
 
+import { writeJsonAtomic } from "../utils/fileUtils";
+
+// ...
+
 function persist() {
     try {
-        fs.mkdirSync(path.dirname(dataPath), { recursive: true });
-        fs.writeFileSync(dataPath, JSON.stringify(sponsors, null, 2));
+        // fs.mkdirSync handled by writeJsonAtomic
+        writeJsonAtomic(dataPath, sponsors);
     } catch (e) {
         console.error("Failed to persist sponsors", e);
     }

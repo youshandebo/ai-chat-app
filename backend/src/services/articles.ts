@@ -1,5 +1,6 @@
 import fs from "fs";
 import path from "path";
+import { writeJsonAtomic } from "../utils/fileUtils";
 import { randomUUID } from "crypto";
 
 const dataPath = path.resolve(process.cwd(), "data/articles.json");
@@ -68,8 +69,7 @@ function ensureLoaded() {
 
 function persist() {
     try {
-        fs.mkdirSync(path.dirname(dataPath), { recursive: true });
-        fs.writeFileSync(dataPath, JSON.stringify(cached, null, 2));
+        writeJsonAtomic(dataPath, cached);
         lastLoaded = Date.now(); // Update timestamp so we don't reload our own changes
     } catch (e) {
         console.error("Failed to persist articles:", e);

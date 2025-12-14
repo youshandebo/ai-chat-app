@@ -1,5 +1,6 @@
 import fs from "fs";
 import path from "path";
+import { writeJsonAtomic } from "../utils/fileUtils";
 
 type Range = "24h" | "7d" | "30d" | "365d";
 
@@ -16,8 +17,7 @@ let visitorLog: { ts: number; ip: string }[] = [];
 function persist() {
   try {
     const obj = { active, maxActive, maxHistory, calls, errors, visitorLog };
-    fs.mkdirSync(path.dirname(dataPath), { recursive: true });
-    fs.writeFileSync(dataPath, JSON.stringify(obj));
+    writeJsonAtomic(dataPath, obj);
   } catch (e) {
     console.error("Persist failed:", e);
   }
