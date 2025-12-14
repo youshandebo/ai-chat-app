@@ -21,14 +21,31 @@ interface ArticlesData {
 
 let cached: ArticlesData = { articles: [] };
 
+let lastLoaded = 0;
+const CACHE_TTL = 1000 * 60 * 5; // 5 minutes cache if modified externally, but we primarily rely on in-memory state
+
 function ensureLoaded() {
     try {
+        // If we have cached data and it's not too old, or if we just wrote to it (meaning it's fresh), skip load
+        const now = Date.now();
+        if (cached.articles.length > 0 && (now - lastLoaded < CACHE_TTL)) {
+            return;
+        }
+
         if (fs.existsSync(dataPath)) {
+            // Check if file modified since last load
+            const stats = fs.statSync(dataPath);
+            if (stats.mtimeMs <= lastLoaded && cached.articles.length > 0) {
+                return;
+            }
+
             const raw = fs.readFileSync(dataPath, "utf-8");
             cached = JSON.parse(raw || "{}");
             if (!Array.isArray(cached.articles)) {
                 cached.articles = [];
             }
+            lastLoaded = Date.now();
+            console.log(`[Articles] Loaded ${cached.articles.length} articles from disk`);
         }
     } catch (e) {
         console.error("Failed to load articles:", e);
@@ -40,6 +57,7 @@ function persist() {
     try {
         fs.mkdirSync(path.dirname(dataPath), { recursive: true });
         fs.writeFileSync(dataPath, JSON.stringify(cached, null, 2));
+        lastLoaded = Date.now(); // Update timestamp so we don't reload our own changes
     } catch (e) {
         console.error("Failed to persist articles:", e);
     }

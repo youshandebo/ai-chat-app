@@ -2,11 +2,26 @@ import { motion } from "framer-motion";
 
 export default function Changelog() {
   return (
-    <div className="min-h-full bg-gray-50 dark:bg-dark-bg transition-colors duration-300">
+    <div className="min-h-screen w-full bg-gray-50 dark:bg-dark-bg transition-colors duration-300">
       <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="relative z-10 max-w-2xl mx-auto p-6">
         <motion.h2 initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="text-2xl font-bold mb-4 text-gray-900 dark:text-white">更新公告</motion.h2>
 
         <div className="space-y-6">
+          {/* 2025-12-14 更新 */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.05 }}
+            className="rounded-lg border border-gray-200 dark:border-dark-border bg-white dark:bg-dark-card p-5 pb-8 relative"
+          >
+            <div className="text-gray-700 dark:text-dark-text pr-4 space-y-2">
+              <p>⚡️ 性能优化：大幅提升首页文章加载与 Chat 页面模型列表加载速度</p>
+              <p>🐛 修复移动端黑夜模式 bug</p>
+              <p>🎨 优化部分 UI 细节与交互体验</p>
+            </div>
+            <div className="absolute right-4 bottom-3 text-xs text-gray-500 dark:text-gray-400">2025年12月14日</div>
+          </motion.div>
+
           {/* 2025-12-10 更新 */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
