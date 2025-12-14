@@ -27,44 +27,40 @@ export default function ArticleDetail() {
 
     useEffect(() => {
         if (!id) return;
+        setLoading(true);
 
-        useEffect(() => {
-            if (!id) return;
-            setLoading(true);
+        // Fetch current article and all articles for recommendation
+        Promise.all([
+            fetch(`/api/articles/${id}`).then(res => {
+                if (!res.ok) throw new Error('Article not found');
+                return res.json();
+            }),
+            fetch('/api/articles').then(res => res.json())
+        ])
+            .then(([currentArticle, allArticles]) => {
+                setArticle(currentArticle);
 
-            // Fetch current article and all articles for recommendation
-            Promise.all([
-                fetch(`/api/articles/${id}`).then(res => {
-                    if (!res.ok) throw new Error('Article not found');
-                    return res.json();
-                }),
-                fetch('/api/articles').then(res => res.json())
-            ])
-                .then(([currentArticle, allArticles]) => {
-                    setArticle(currentArticle);
+                // Calculate related articles
+                if (Array.isArray(allArticles)) {
+                    const others = allArticles.filter((a: Article) => a.id !== currentArticle.id && a.published);
+                    const rated = others.map(a => {
+                        const commonTags = a.tags?.filter(t => currentArticle.tags?.includes(t)).length || 0;
+                        return { ...a, commonTags };
+                    });
 
-                    // Calculate related articles
-                    if (Array.isArray(allArticles)) {
-                        const others = allArticles.filter((a: Article) => a.id !== currentArticle.id && a.published);
-                        const rated = others.map(a => {
-                            const commonTags = a.tags?.filter(t => currentArticle.tags?.includes(t)).length || 0;
-                            return { ...a, commonTags };
-                        });
+                    // Sort by common tags desc, then date desc
+                    rated.sort((a, b) => b.commonTags - a.commonTags || b.createdAt - a.createdAt);
 
-                        // Sort by common tags desc, then date desc
-                        rated.sort((a, b) => b.commonTags - a.commonTags || b.createdAt - a.createdAt);
+                    setRelatedArticles(rated.slice(0, 3));
+                }
 
-                        setRelatedArticles(rated.slice(0, 3));
-                    }
-
-                    setLoading(false);
-                })
-                .catch(err => {
-                    console.error('Failed to fetch article:', err);
-                    setError('文章不存在或已被删除');
-                    setLoading(false);
-                });
-        }, [id]);
+                setLoading(false);
+            })
+            .catch(err => {
+                console.error('Failed to fetch article:', err);
+                setError('文章不存在或已被删除');
+                setLoading(false);
+            });
     }, [id]);
 
     if (loading) {
