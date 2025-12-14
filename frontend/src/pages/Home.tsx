@@ -122,7 +122,7 @@ export default function Home() {
                       </p>
                       <div className="flex items-center justify-between text-sm text-gray-500 dark:text-gray-400">
                         <div className="flex items-center gap-2">
-                          <User className="w-4 h-4" />
+                          <img src="/author-avatar.jpg" alt={article.author} className="w-5 h-5 rounded-full object-cover" />
                           {article.author}
                         </div>
                         <div className="flex items-center gap-1 text-primary font-medium opacity-0 group-hover:opacity-100 transition-opacity">

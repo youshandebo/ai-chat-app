@@ -18,6 +18,8 @@ export default function Changelog() {
               <p>⚡️ 性能优化：大幅提升首页文章加载与 Chat 页面模型列表加载速度</p>
               <p>🐛 修复移动端黑夜模式 bug</p>
               <p>🎨 优化部分 UI 细节与交互体验</p>
+              <p>🔵 改为主题色为蓝色</p>
+              <p>🎉 结束测试阶段，正式发布 v1.0</p>
             </div>
             <div className="absolute right-4 bottom-3 text-xs text-gray-500 dark:text-gray-400">2025年12月14日</div>
           </motion.div>

@@ -51,7 +51,7 @@ router.post("/admin/articles", requireAdmin, (req, res) => {
         const article = createArticle({
             title,
             content,
-            author: author || "Admin",
+            author: author || "youshandebo",
             published: published || false,
             tags: tags || [],
         });

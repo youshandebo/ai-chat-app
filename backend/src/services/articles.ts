@@ -44,6 +44,19 @@ function ensureLoaded() {
             if (!Array.isArray(cached.articles)) {
                 cached.articles = [];
             }
+            // Auto-migration: Update 'Admin' to 'youshandebo'
+            let hasChanges = false;
+            cached.articles.forEach(a => {
+                if (a.author === 'Admin') {
+                    a.author = 'youshandebo';
+                    hasChanges = true;
+                }
+            });
+            if (hasChanges) {
+                console.log('[Articles] Migrated authors from Admin to youshandebo');
+                persist(); // Save immediately
+            }
+
             lastLoaded = Date.now();
             console.log(`[Articles] Loaded ${cached.articles.length} articles from disk`);
         }

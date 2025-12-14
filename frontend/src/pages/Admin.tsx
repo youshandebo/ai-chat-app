@@ -260,7 +260,7 @@ const Admin = () => {
                 },
                 body: JSON.stringify({
                     ...editingArticle,
-                    author: editingArticle.author || 'Admin',
+                    author: editingArticle.author || 'youshandebo',
                     tags: typeof editingArticle.tags === 'string' ? (editingArticle.tags as string).split(',').map(t => t.trim()) : editingArticle.tags || []
                 })
             });
