@@ -47,9 +47,9 @@ export default function MessageList() {
                 <div className="w-8 h-8 rounded-full bg-indigo-100 dark:bg-indigo-900 text-indigo-600 dark:text-indigo-200 flex items-center justify-center text-sm">🤖</div>
               </div>
             )}
-            <div className="max-w-[72%]">
+            <div className={`max-w-[72%] ${m.role === "user" ? "items-end flex flex-col" : "items-start flex flex-col"}`}>
               <div
-                className={`rounded-2xl px-4 py-2 shadow ${m.role === "user"
+                className={`w-fit rounded-2xl px-4 py-2 shadow ${m.role === "user"
                   ? "bg-primary dark:bg-primary/90 text-white"
                   : "bg-gray-100 dark:bg-dark-card dark:text-dark-text border border-gray-200 dark:border-dark-border"
                   }`}
@@ -90,7 +90,7 @@ export default function MessageList() {
                   );
                 })()}
               </div>
-              <div className="mt-1 flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+              <div className={`mt-1 flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400 ${m.role === "user" ? "justify-end w-full" : "justify-start w-full"}`}>
                 <span>{new Date(m.timestamp || Date.now()).toLocaleString()}</span>
                 {m.role === "assistant" && (
                   <button

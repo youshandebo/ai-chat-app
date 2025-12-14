@@ -12,16 +12,15 @@ export default function Changelog() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.05 }}
-            className="rounded-lg border border-gray-200 dark:border-dark-border bg-white dark:bg-dark-card p-5 pb-8 relative"
+            className="rounded-lg border border-blue-200 dark:border-blue-900 bg-blue-50 dark:bg-blue-950/30 p-5 pb-8 relative"
           >
-            <div className="text-gray-700 dark:text-dark-text pr-4 space-y-2">
+            <div className="text-gray-700 dark:text-blue-100 pr-4 space-y-2">
               <p>⚡️ 性能优化：大幅提升首页文章加载与 Chat 页面模型列表加载速度</p>
               <p>🐛 修复移动端黑夜模式 bug</p>
               <p>🎨 优化部分 UI 细节与交互体验</p>
-              <p>🔵 改为主题色为蓝色</p>
               <p>🎉 结束测试阶段，正式发布 v1.0</p>
             </div>
-            <div className="absolute right-4 bottom-3 text-xs text-gray-500 dark:text-gray-400">2025年12月14日</div>
+            <div className="absolute right-4 bottom-3 text-xs text-blue-500 dark:text-blue-400">2025年12月14日</div>
           </motion.div>
 
           {/* 2025-12-10 更新 */}
