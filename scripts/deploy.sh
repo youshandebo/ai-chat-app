@@ -233,7 +233,11 @@ build_frontend() {
     
     # FORCE CLEAN BUILD: Remove old artifacts and cache
     log_info "Cleaning old build artifacts and cache..."
-    rm -rf dist node_modules/.vite
+    # FORCE CLEAN BUILD: Remove old artifacts and cache and node_modules to prevent React duplicates
+    log_info "Cleaning old build artifacts and cache..."
+    rm -rf dist node_modules package-lock.json
+    
+    log_info "Installing dependencies..."
     
     log_info "Installing dependencies..."
     if npm install --legacy-peer-deps >/dev/null 2>&1; then

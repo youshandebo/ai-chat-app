@@ -128,12 +128,12 @@ export default function Sidebar() {
             <X className="w-5 h-5 text-gray-500" />
           </button>
         </div>
-        <SidebarContent />
+        {sidebarContent}
       </aside>
 
       {/* Desktop Sidebar */}
       <aside className="w-64 border-r dark:border-dark-border p-4 hidden md:flex flex-col bg-gray-50 dark:bg-dark-bg">
-        <SidebarContent />
+        {sidebarContent}
       </aside>
     </>
   );
