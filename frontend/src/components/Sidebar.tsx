@@ -39,6 +39,7 @@ export default function Sidebar() {
       <button
         className="mb-4 w-full bg-primary text-white p-3 rounded-xl hover:bg-primary/90 transition-colors flex items-center justify-center gap-2 font-medium shadow-sm"
         onClick={handleNewChat}
+        aria-label="新建对话"
       >
         <Plus className="w-5 h-5" />
         新建对话
@@ -48,8 +49,8 @@ export default function Sidebar() {
           <div
             key={chat.id}
             className={`group p-3 rounded-xl border transition-all ${currentChatId === chat.id
-                ? "bg-primary/10 border-primary/30 dark:bg-primary/20"
-                : "bg-white dark:bg-dark-card border-gray-200 dark:border-dark-border hover:border-primary/30"
+              ? "bg-primary/10 border-primary/30 dark:bg-primary/20"
+              : "bg-white dark:bg-dark-card border-gray-200 dark:border-dark-border hover:border-primary/30"
               }`}
           >
             <div className="flex items-center gap-2">
@@ -59,6 +60,7 @@ export default function Sidebar() {
                   setCurrentChat(chat.id);
                   setIsOpen(false);
                 }}
+                aria-label={`切换到对话: ${chat.title}`}
               >
                 {chat.title}
               </button>
@@ -70,6 +72,7 @@ export default function Sidebar() {
                     if (name && name.trim()) renameChat(chat.id, name.trim());
                   }}
                   title="重命名"
+                  aria-label="重命名对话"
                 >
                   <Edit3 className="w-4 h-4" />
                 </button>
@@ -77,6 +80,7 @@ export default function Sidebar() {
                   className="p-1.5 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/30 text-red-500"
                   onClick={() => deleteChat(chat.id)}
                   title="删除"
+                  aria-label="删除对话"
                 >
                   <Trash2 className="w-4 h-4" />
                 </button>

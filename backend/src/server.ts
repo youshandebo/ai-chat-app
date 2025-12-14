@@ -3,6 +3,7 @@ import cors from "cors";
 import path from "path";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
+import compression from "compression";
 import winston from "winston";
 import dotenv from "dotenv";
 import fs from "fs";
@@ -11,6 +12,7 @@ import adminRouter from "./routes/admin";
 import articleRouter from "./routes/article";
 import uploadRouter from "./routes/upload";
 import sponsorRouter from "./routes/sponsor";
+import rssRouter from "./routes/rss";
 import { metricsMiddleware } from "./services/metrics";
 
 dotenv.config();
@@ -52,6 +54,9 @@ logger.info(`Server starting with config:`, {
 app.use(helmet({
   crossOriginResourcePolicy: { policy: "cross-origin" }
 }));
+
+// Enable Gzip/Brotli compression
+app.use(compression());
 
 // Serve uploaded files
 const uploadsPath = path.join(rootDir, 'uploads');
@@ -123,6 +128,7 @@ app.use("/api/admin", adminRouter);
 app.use("/api", articleRouter);
 app.use("/api/admin", uploadRouter);
 app.use("/api", sponsorRouter);
+app.use("/api", rssRouter);
 
 // Global error handler - must be last
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {

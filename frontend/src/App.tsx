@@ -9,6 +9,7 @@ import Sponsor from "./pages/Sponsor";
 import Admin from "./pages/Admin";
 import Articles from "./pages/Articles";
 import ArticleDetail from "./pages/ArticleDetail";
+import NotFound from "./pages/NotFound";
 
 export default function App() {
   return (
@@ -23,6 +24,7 @@ export default function App() {
             <Route path="/admin" element={<Admin />} />
             <Route path="/articles" element={<Articles />} />
             <Route path="/articles/:id" element={<ArticleDetail />} />
+            <Route path="*" element={<NotFound />} />
           </Routes>
         </Layout>
       </BrowserRouter>
