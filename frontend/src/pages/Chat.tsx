@@ -45,6 +45,7 @@ export default function Chat() {
               if (chats.length === 0) createChat("gemini-2.5-flash"); else setCurrentChat(chats[0].id);
               return;
             }
+            const chatId = current.id;
             const freshCurrent = useChatStore.getState().chats.find(c => c.id === chatId);
             const modelId = freshCurrent?.modelId || "gemini-2.5-flash"; // Fallback safety
             const userMsgId = `msg_${Date.now()}`;
