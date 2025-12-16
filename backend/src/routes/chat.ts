@@ -49,8 +49,10 @@ router.post("/chat/:modelId", async (req, res) => {
       res.setHeader("Connection", "keep-alive");
       await callModelAPI(useModel, transformed, useApiKey, (chunk) => {
         res.write(`data: ${JSON.stringify(chunk)}\n\n`);
+        (res as any).flush?.(); // Ensure chunks are sent immediately
       });
       res.write("data: [DONE]\n\n");
+      (res as any).flush?.();
       res.end();
       // Record successful API call
       logCall();

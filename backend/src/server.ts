@@ -56,7 +56,18 @@ app.use(helmet({
 }));
 
 // Enable Gzip/Brotli compression
-app.use(compression());
+// Enable Gzip/Brotli compression, but EXCLUDE SSE
+app.use(compression({
+  filter: (req, res) => {
+    if (req.headers['x-no-compression']) {
+      return false;
+    }
+    if (res.getHeader('Content-Type') === 'text/event-stream') {
+      return false;
+    }
+    return compression.filter(req, res);
+  }
+}));
 
 // Serve uploaded files
 const uploadsPath = path.join(rootDir, 'uploads');
