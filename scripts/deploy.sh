@@ -223,6 +223,21 @@ build_backend() {
         log_info "Check backend/.env configuration"
         exit 1
     fi
+    fi
+
+    # GENERATE BACKEND .ENV
+    log_info "Configuring backend environment..."
+    cat > .env << EOF
+PORT=$BACK_PORT
+CORS_ORIGIN=*
+# Pass through API Keys if they exist in shell env
+GEMINI_API_KEY=${GEMINI_API_KEY:-}
+VECTORENGINE_API_KEY=${VECTORENGINE_API_KEY:-}
+ADMIN_TOKEN=${ADMIN_TOKEN:-fnx081013fnx}
+RATE_LIMIT_PER_MINUTE=60
+ALLOW_MODEL_FALLBACK=true
+EOF
+    log_success "Backend configuration generated"
 }
 
 # Build frontend

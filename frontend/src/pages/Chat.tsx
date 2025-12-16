@@ -64,7 +64,20 @@ export default function Chat() {
                 body: JSON.stringify(payload),
                 signal: controller.signal,
               });
-              if (!res.ok && res.status !== 200) throw new Error(`HTTP ${res.status}`);
+              if (!res.ok) {
+                let errorMessage = `HTTP ${res.status}`;
+                try {
+                  const errorJson = await res.json();
+                  if (errorJson.error) errorMessage = errorJson.error;
+                } catch {
+                  // If JSON parse fails, try text
+                  try {
+                    const text = await res.text();
+                    if (text) errorMessage = `HTTP ${res.status}: ${text.slice(0, 100)}`;
+                  } catch { }
+                }
+                throw new Error(errorMessage);
+              }
               const ct = res.headers.get("content-type") || "";
               if (res.body && ct.includes("text/event-stream")) {
                 const reader = res.body.getReader();
