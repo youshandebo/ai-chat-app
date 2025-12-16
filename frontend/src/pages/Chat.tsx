@@ -45,8 +45,8 @@ export default function Chat() {
               if (chats.length === 0) createChat("gemini-2.5-flash"); else setCurrentChat(chats[0].id);
               return;
             }
-            const chatId = current.id;
-            const modelId = current.modelId;
+            const freshCurrent = useChatStore.getState().chats.find(c => c.id === chatId);
+            const modelId = freshCurrent?.modelId || "gemini-2.5-flash"; // Fallback safety
             const userMsgId = `msg_${Date.now()}`;
             addMessage(chatId, { id: userMsgId, role: "user", content, timestamp: Date.now(), modelId });
             const asstId = `msg_${Date.now()}_asst`;
@@ -55,8 +55,8 @@ export default function Chat() {
             abortRef.current = controller;
             setIsGenerating(true);
             try {
-              const payload = { messages: current.messages.concat([{ id: userMsgId, role: "user", content, timestamp: Date.now(), modelId }]), stream: true } as any;
-              console.log("send payload", payload);
+              const payload = { messages: freshCurrent?.messages.concat([{ id: userMsgId, role: "user", content, timestamp: Date.now(), modelId }]) || [], stream: true } as any;
+              console.log("send payload", { modelId, payload });
               const res = await fetch(`/api/chat/${modelId}`, {
                 method: "POST",
                 mode: "cors",
