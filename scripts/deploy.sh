@@ -223,7 +223,7 @@ build_backend() {
         log_info "Check backend/.env configuration"
         exit 1
     fi
-    fi
+
 
     # GENERATE BACKEND .ENV
     log_info "Configuring backend environment..."
