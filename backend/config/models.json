@@ -17,9 +17,9 @@
       }
     },
     {
-      "id": "gpt-5-nano-2025-08-07",
-      "name": "gpt-5-nano-2025-08-07",
-      "apiBase": "https://api.vectorengine.ai",
+      "id": "gpt-5-mini-2025-08-07",
+      "name": "GPT-5 Mini",
+      "apiBase": "https://api.vectorengine.ai/v1",
       "apiKeyEnv": "VECTORENGINE_API_KEY",
       "supportsStreaming": true,
       "contextWindow": 128000,
@@ -29,7 +29,7 @@
         "maxTokens": 4096
       },
       "apiPaths": {
-        "chat": "/v1/chat/completions"
+        "chat": "/chat/completions"
       }
     }
   ]
