@@ -71,10 +71,17 @@ export async function callModelAPI(
       const req = client.request(opts, (res) => {
         const contentType = String(res.headers["content-type"] || "");
         let buffer = "";
+        let isSSE = contentType.includes("text/event-stream");
+
         res.on("data", (chunk) => {
           const str = chunk.toString();
+          // Auto-detect SSE if header is missing but body looks like SSE
+          if (!isSSE && (str.startsWith("data: ") || str.startsWith(": ping"))) {
+            isSSE = true;
+          }
+
           buffer += str;
-          if (contentType.includes("text/event-stream")) {
+          if (isSSE) {
             const lines = buffer.split("\n");
             buffer = lines.pop() || "";
             for (const line of lines) {
@@ -99,7 +106,7 @@ export async function callModelAPI(
           }
         });
         res.on("end", () => {
-          if (!contentType.includes("text/event-stream")) {
+          if (!isSSE) {
             try {
               const parsed = JSON.parse(buffer);
               const content =
