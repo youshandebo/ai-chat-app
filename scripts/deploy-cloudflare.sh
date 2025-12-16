@@ -25,7 +25,7 @@ GEMINI_API_KEY="${GEMINI_API_KEY:-}"
 
 echo -e "${BLUE}"
 echo "╔══════════════════════════════════════════════╗"
-echo "║  🚀 AI Chat Cloudflare Deployment v1.0       ║"
+echo "║  🚀 AI Chat Cloudflare Deployment v1.0     ║"
 echo "║  Domain: $DOMAIN                     ║"
 echo "║  Backend: $BACK_PORT | Frontend: $FRONT_PORT              ║"
 echo "╚══════════════════════════════════════════════╝"

@@ -25,6 +25,10 @@ router.post("/chat/:modelId", async (req, res) => {
   if (!model) return res.status(404).json({ error: "模型不存在" });
   let useModel = model;
   let useApiKey = process.env[model.apiKeyEnv];
+
+  // DEBUG LOG
+  console.log(`[Chat Debug] Model: ${modelId}, EnvVar: ${model.apiKeyEnv}, KeyPresent: ${!!useApiKey}, Mode: ${stream ? 'stream' : 'unary'}`);
+
   const allowFallback = (process.env.ALLOW_MODEL_FALLBACK || "false").toLowerCase() === "true";
   if ((!useApiKey && model.apiKeyEnv) && allowFallback) {
     const fallback = cfg.models.find((m: any) => m.id === "deepseek-openai-mock");
@@ -34,7 +38,8 @@ router.post("/chat/:modelId", async (req, res) => {
     }
   }
   if (!useApiKey && model.apiKeyEnv && useModel.id === model.id) {
-    return res.status(500).json({ error: "模型服务未配置" });
+    console.error(`[Chat Error] Missing API Key. EnvVar: ${model.apiKeyEnv}`);
+    return res.status(500).json({ error: `Server Configuration Error: Missing API Key for ${model.apiKeyEnv}` });
   }
   const transformed = transformMessages(messages || [], useModel.messageFormat);
   try {
@@ -57,9 +62,12 @@ router.post("/chat/:modelId", async (req, res) => {
     }
   } catch (e: any) {
     // Record error
+    console.error(`[Chat Error] modelId: ${req.params.modelId}`, e); // Explicit logging
     logError();
     const m = String(e?.message || "").match(/HTTP (\d{3})/);
     const sc = m ? parseInt(m[1], 10) : 500;
+
+    // If it is 500, try to give more info if dev/admin (or just log it)
     res.status(sc).json({ error: `模型调用失败: ${e.message}` });
   }
 });
