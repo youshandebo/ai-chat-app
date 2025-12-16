@@ -25,12 +25,12 @@ export async function callModelAPI(
     model.messageFormat === "gemini"
       ? JSON.stringify(messages)
       : JSON.stringify({
-          model: model.id,
-          messages,
-          stream: true,
-          temperature: model.defaultParams?.temperature,
-          max_tokens: model.defaultParams?.maxTokens,
-        });
+        model: model.id,
+        messages,
+        stream: true,
+        temperature: model.defaultParams?.temperature,
+        max_tokens: model.defaultParams?.maxTokens,
+      });
 
   const base = new URL(model.apiBase);
   const candidates: string[] = [];
@@ -92,7 +92,7 @@ export async function callModelAPI(
                       parsed.candidates?.[0]?.content?.parts?.[0]?.text ||
                       "";
                     if (content) onChunk?.({ content, done: false });
-                  } catch {}
+                  } catch { }
                 }
               }
             }
@@ -119,7 +119,14 @@ export async function callModelAPI(
         });
         res.on("error", reject);
         if (res.statusCode && res.statusCode >= 400) {
-          reject(new Error(`HTTP ${res.statusCode}`));
+          // Consume the error body to provide meaningful debug info
+          let errorBody = "";
+          res.on("data", (chunk) => { errorBody += chunk; });
+          res.on("end", () => {
+            console.error(`[ModelAPI Error] Status: ${res.statusCode}, Body: ${errorBody.slice(0, 500)}`);
+            reject(new Error(`HTTP ${res.statusCode}: ${errorBody.slice(0, 200)}`));
+          });
+          return;
         }
       });
       req.on("error", reject);
@@ -131,7 +138,7 @@ export async function callModelAPI(
     try {
       const result = await attempt(p);
       return result;
-    } catch {}
+    } catch { }
   }
   throw new Error("All endpoints failed");
 }
