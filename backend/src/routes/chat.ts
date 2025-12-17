@@ -48,7 +48,14 @@ router.post("/chat/:modelId", async (req, res) => {
       res.setHeader("Cache-Control", "no-cache");
       res.setHeader("Connection", "keep-alive");
       res.setHeader("X-Accel-Buffering", "no"); // Disable Nginx buffering explicitly
+
+      // Send 2KB padding to bypass proxy/browser verify buffering
+      res.write(":" + " ".repeat(2048) + "\n\n");
+
+      let chunkCount = 0;
       await callModelAPI(useModel, transformed, useApiKey, (chunk) => {
+        chunkCount++;
+        if (chunkCount % 10 === 0) console.log(`[Chat Stream] Writing chunk ${chunkCount}`);
         res.write(`data: ${JSON.stringify(chunk)}\n\n`);
         (res as any).flush?.(); // Ensure chunks are sent immediately
       });

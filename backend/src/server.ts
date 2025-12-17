@@ -62,6 +62,10 @@ app.use(compression({
     if (req.headers['x-no-compression']) {
       return false;
     }
+    // Strongly disable for chat API to prevent buffering
+    if (req.path.includes('/api/chat') || req.path.includes('/chat')) {
+      return false;
+    }
     if (res.getHeader('Content-Type') === 'text/event-stream') {
       return false;
     }
