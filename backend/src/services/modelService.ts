@@ -76,6 +76,8 @@ export async function callModelAPI(
         let buffer = "";
         let isSSE = contentType.includes("text/event-stream");
 
+        console.log(`[ModelAPI] Start. Content-Type: ${contentType}, isSSE: ${isSSE}`);
+
         res.on("data", (chunk) => {
           const str = chunk.toString();
           console.log(`[ModelAPI Data] Chunk size: ${str.length}, content: ${JSON.stringify(str.slice(0, 50))}`);
@@ -85,7 +87,7 @@ export async function callModelAPI(
           // Relaxed SSE detection: verify if buffer contains "data:" pattern
           if (!isSSE && (/data:\s?\{/.test(buffer) || /data:\s?\[DONE\]/.test(buffer))) {
             isSSE = true;
-            console.log("[ModelAPI] SSE Detected!");
+            console.log("[ModelAPI] SSE Detected via body sniffing!");
           }
 
           if (isSSE) {
@@ -93,11 +95,14 @@ export async function callModelAPI(
             const lines = buffer.split("\n");
             buffer = lines.pop() || ""; // Keep inconsistent line in buffer
 
+            console.log(`[ModelAPI] Processing ${lines.length} lines`);
+
             for (const line of lines) {
               const trimmed = line.trim();
               if (trimmed.startsWith("data:")) {
                 const data = trimmed.slice(5).trim();
                 if (data === "[DONE]") {
+                  console.log("[ModelAPI] Stream [DONE]");
                   onChunk?.({ content: "", done: true });
                   resolve(null);
                 } else {
@@ -108,8 +113,15 @@ export async function callModelAPI(
                       parsed.content ||
                       parsed.candidates?.[0]?.content?.parts?.[0]?.text ||
                       "";
-                    if (content) onChunk?.({ content, done: false });
-                  } catch { }
+
+                    if (content) {
+                      onChunk?.({ content, done: false });
+                    } else {
+                      console.log("[ModelAPI] Parsed JSON but no content found", JSON.stringify(parsed).slice(0, 100));
+                    }
+                  } catch (e) {
+                    console.log("[ModelAPI] JSON Parse Error", e);
+                  }
                 }
               }
             }
