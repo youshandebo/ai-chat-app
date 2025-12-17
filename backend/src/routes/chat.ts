@@ -47,6 +47,7 @@ router.post("/chat/:modelId", async (req, res) => {
       res.setHeader("Content-Type", "text/event-stream");
       res.setHeader("Cache-Control", "no-cache");
       res.setHeader("Connection", "keep-alive");
+      res.setHeader("X-Accel-Buffering", "no"); // Disable Nginx buffering explicitly
       await callModelAPI(useModel, transformed, useApiKey, (chunk) => {
         res.write(`data: ${JSON.stringify(chunk)}\n\n`);
         (res as any).flush?.(); // Ensure chunks are sent immediately

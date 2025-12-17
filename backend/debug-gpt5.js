@@ -27,9 +27,15 @@ const req = https.request(options, (res) => {
     let firstChunkTime = null;
     let lastChunkTime = null;
 
+    const startTime = Date.now();
+    console.log('Request sent at:', startTime);
+
     res.on('data', (chunk) => {
         const now = Date.now();
-        if (!firstChunkTime) firstChunkTime = now;
+        if (!firstChunkTime) {
+            firstChunkTime = now;
+            console.log(`\n[TTFB: ${firstChunkTime - startTime}ms]`);
+        }
 
         let gap = 0;
         if (lastChunkTime) gap = now - lastChunkTime;
