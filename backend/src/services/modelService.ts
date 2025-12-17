@@ -32,6 +32,9 @@ export async function callModelAPI(
         max_tokens: model.defaultParams?.maxTokens,
       });
 
+  // DEBUG LOG
+  console.log(`[ModelService] Sending to ${model.apiBase}:`, body.slice(0, 500));
+
   const base = new URL(model.apiBase);
   const candidates: string[] = [];
   if (model.apiPaths?.chat) candidates.push(model.apiPaths.chat);
