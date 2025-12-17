@@ -128,6 +128,11 @@ export default function Chat() {
                 setIsGenerating(false);
               }
             } catch (e: any) {
+              if (e.name === 'AbortError' || e.message?.includes('aborted')) {
+                updateMessage(chatId, asstId, acc + "\n\n[用户手动停止输出]");
+                setIsGenerating(false);
+                return;
+              }
               console.error("chat error", e);
               setError(e?.message || String(e));
               updateMessage(chatId, asstId, e?.message || String(e));

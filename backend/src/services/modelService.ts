@@ -75,18 +75,21 @@ export async function callModelAPI(
 
         res.on("data", (chunk) => {
           const str = chunk.toString();
-          // Auto-detect SSE if header is missing but body looks like SSE
-          if (!isSSE && (str.startsWith("data: ") || str.startsWith(": ping"))) {
+          // Relaxed SSE detection: verify if it contains "data:" pattern
+          if (!isSSE && /data:\s?\{/.test(str)) {
             isSSE = true;
           }
 
           buffer += str;
           if (isSSE) {
+            // Process buffer line by line
             const lines = buffer.split("\n");
-            buffer = lines.pop() || "";
+            buffer = lines.pop() || ""; // Keep inconsistent line in buffer
+
             for (const line of lines) {
-              if (line.startsWith("data: ")) {
-                const data = line.slice(6);
+              const trimmed = line.trim();
+              if (trimmed.startsWith("data:")) {
+                const data = trimmed.slice(5).trim();
                 if (data === "[DONE]") {
                   onChunk?.({ content: "", done: true });
                   resolve(null);
