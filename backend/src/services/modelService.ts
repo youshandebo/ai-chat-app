@@ -78,11 +78,14 @@ export async function callModelAPI(
 
         res.on("data", (chunk) => {
           const str = chunk.toString();
+          console.log(`[ModelAPI Data] Chunk size: ${str.length}, content: ${JSON.stringify(str.slice(0, 50))}`);
+
           buffer += str;
 
           // Relaxed SSE detection: verify if buffer contains "data:" pattern
           if (!isSSE && (/data:\s?\{/.test(buffer) || /data:\s?\[DONE\]/.test(buffer))) {
             isSSE = true;
+            console.log("[ModelAPI] SSE Detected!");
           }
 
           if (isSSE) {
