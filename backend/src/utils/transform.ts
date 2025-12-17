@@ -1,4 +1,7 @@
 export function transformMessages(messages: any[], targetFormat: string) {
+  // DEBUG LOG
+  if (targetFormat === "openai") console.log(`[Transform] Formatting ${messages.length} messages for ${targetFormat}`);
+
   if (targetFormat === "openai") {
     return messages.map(m => ({
       role: m.role,

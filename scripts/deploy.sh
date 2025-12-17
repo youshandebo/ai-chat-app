@@ -206,6 +206,7 @@ build_backend() {
     log_step "Step 5/8: Build backend"
     
     cd "$BACK_DIR"
+    rm -rf dist # Force clean build
     log_info "Installing dependencies..."
     
     if npm install --legacy-peer-deps >/dev/null 2>&1; then
