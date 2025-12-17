@@ -1,5 +1,10 @@
 export function transformMessages(messages: any[], targetFormat: string) {
-  if (targetFormat === "openai") return messages;
+  if (targetFormat === "openai") {
+    return messages.map(m => ({
+      role: m.role,
+      content: m.content
+    }));
+  }
   if (targetFormat === "gemini") {
     const contents = messages.map((msg) => {
       let role = msg.role === "assistant" ? "model" : "user";

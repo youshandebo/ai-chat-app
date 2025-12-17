@@ -78,12 +78,13 @@ export async function callModelAPI(
 
         res.on("data", (chunk) => {
           const str = chunk.toString();
-          // Relaxed SSE detection: verify if it contains "data:" pattern
-          if (!isSSE && /data:\s?\{/.test(str)) {
+          buffer += str;
+
+          // Relaxed SSE detection: verify if buffer contains "data:" pattern
+          if (!isSSE && (/data:\s?\{/.test(buffer) || /data:\s?\[DONE\]/.test(buffer))) {
             isSSE = true;
           }
 
-          buffer += str;
           if (isSSE) {
             // Process buffer line by line
             const lines = buffer.split("\n");
