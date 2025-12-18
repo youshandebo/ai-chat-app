@@ -51,6 +51,7 @@ router.post("/chat/:modelId", async (req, res) => {
 
       // Send 2KB padding to bypass proxy/browser verify buffering
       res.write(":" + " ".repeat(2048) + "\n\n");
+      (res as any).flush?.();
 
       let chunkCount = 0;
       await callModelAPI(useModel, transformed, useApiKey, (chunk) => {
@@ -60,6 +61,8 @@ router.post("/chat/:modelId", async (req, res) => {
         (res as any).flush?.(); // Ensure chunks are sent immediately
       });
       res.write("data: [DONE]\n\n");
+      (res as any).flush?.();
+      res.write(" ".repeat(1024) + "\n\n"); // Extra padding at the end
       (res as any).flush?.();
       res.end();
       // Record successful API call

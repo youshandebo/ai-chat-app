@@ -46,7 +46,10 @@ export async function callModelAPI(
     candidates.push("/v1/chat/completions");
   }
 
-  const headers: Record<string, string> = { "Content-Type": "application/json", "Accept": "application/json" };
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    "Accept": "text/event-stream, application/json"
+  };
   if (apiKey) {
     if (model.messageFormat === "gemini") headers["x-goog-api-key"] = apiKey;
     else headers["Authorization"] = `Bearer ${apiKey}`;
@@ -84,10 +87,15 @@ export async function callModelAPI(
 
           buffer += str;
 
-          // Relaxed SSE detection: verify if buffer contains "data:" pattern
-          if (!isSSE && (/data:\s?\{/.test(buffer) || /data:\s?\[DONE\]/.test(buffer))) {
+          // Relaxed SSE detection: verify if buffer contains "data:" pattern or starts with SSE-like structure
+          if (!isSSE && (
+            contentType.includes("text/event-stream") ||
+            buffer.includes("data: ") ||
+            buffer.includes("data:{") ||
+            /data:\s?\[DONE\]/.test(buffer)
+          )) {
             isSSE = true;
-            console.log("[ModelAPI] SSE Detected via body sniffing!");
+            console.log("[ModelAPI] SSE Detected via body sniffing or header!");
           }
 
           if (isSSE) {
