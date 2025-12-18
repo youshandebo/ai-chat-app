@@ -51,7 +51,7 @@ export default function Chat() {
             const userMsgId = `msg_${Date.now()}`;
             addMessage(chatId, { id: userMsgId, role: "user", content, timestamp: Date.now(), modelId });
             const asstId = `msg_${Date.now()}_asst`;
-            addMessage(chatId, { id: asstId, role: "assistant", content: "", timestamp: Date.now(), modelId });
+            addMessage(chatId, { id: asstId, role: "assistant", content: "AI正在思考🤔", timestamp: Date.now(), modelId });
             const controller = new AbortController();
             abortRef.current = controller;
             setIsGenerating(true);
@@ -85,6 +85,7 @@ export default function Chat() {
                 const decoder = new TextDecoder();
                 let buf = "";
                 let acc = "";
+                let hasReceivedContent = false;
                 for (; ;) {
                   const { value, done } = await reader.read();
                   if (done) break;
@@ -101,7 +102,12 @@ export default function Chat() {
                           const parsed = JSON.parse(data);
                           const chunk = parsed.content || parsed.choices?.[0]?.delta?.content || "";
                           if (chunk) {
-                            acc += chunk;
+                            if (!hasReceivedContent) {
+                              acc = chunk; // Replace "Thinking..." with first chunk
+                              hasReceivedContent = true;
+                            } else {
+                              acc += chunk;
+                            }
                             updateMessage(chatId, asstId, acc);
                           }
                         } catch { }

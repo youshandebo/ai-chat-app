@@ -49,8 +49,8 @@ router.post("/chat/:modelId", async (req, res) => {
       res.setHeader("Connection", "keep-alive");
       res.setHeader("X-Accel-Buffering", "no"); // Disable Nginx buffering explicitly
 
-      // Send 2KB padding to bypass proxy/browser verify buffering
-      res.write(":" + " ".repeat(2048) + "\n\n");
+      // Send 4KB padding to bypass proxy/browser verify buffering
+      res.write(":" + " ".repeat(4096) + "\n\n");
       (res as any).flush?.();
 
       let chunkCount = 0;
