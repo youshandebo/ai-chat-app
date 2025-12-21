@@ -19,7 +19,7 @@
         {
             "id": "gemini-2.5-flash-sf",
             "name": "Gemini 2.5 Flash（官逆）",
-            "apiBase": "https://api.siliconflow.cn",
+            "apiBase": "http://107.173.101.155:8081",
             "apiKeyEnv": "SF_API_KEY",
             "supportsStreaming": true,
             "supportsWebSearch": true,
@@ -36,7 +36,7 @@
         {
             "id": "gemini-2.5-flash-thinking",
             "name": "Gemini 2.5 Flash Thinking",
-            "apiBase": "https://api.siliconflow.cn",
+            "apiBase": "http://107.173.101.155:8081",
             "apiKeyEnv": "SF_API_KEY",
             "supportsStreaming": true,
             "supportsWebSearch": true,
@@ -53,7 +53,7 @@
         {
             "id": "gemini-2.5-pro",
             "name": "Gemini 2.5 Pro",
-            "apiBase": "https://api.siliconflow.cn",
+            "apiBase": "http://107.173.101.155:8081",
             "apiKeyEnv": "SF_API_KEY",
             "supportsStreaming": true,
             "supportsWebSearch": true,
@@ -70,7 +70,7 @@
         {
             "id": "gemini-3-pro-high",
             "name": "Gemini 3 Pro High",
-            "apiBase": "https://api.siliconflow.cn",
+            "apiBase": "http://107.173.101.155:8081",
             "apiKeyEnv": "SF_API_KEY",
             "supportsStreaming": true,
             "supportsWebSearch": true,
@@ -87,7 +87,7 @@
         {
             "id": "gemini-3-pro-low",
             "name": "Gemini 3 Pro Low",
-            "apiBase": "https://api.siliconflow.cn",
+            "apiBase": "http://107.173.101.155:8081",
             "apiKeyEnv": "SF_API_KEY",
             "supportsStreaming": true,
             "supportsWebSearch": true,
@@ -104,7 +104,7 @@
         {
             "id": "gemini-3-pro-image",
             "name": "Gemini 3 Pro Image",
-            "apiBase": "https://api.siliconflow.cn",
+            "apiBase": "http://107.173.101.155:8081",
             "apiKeyEnv": "SF_API_KEY",
             "supportsStreaming": true,
             "supportsWebSearch": true,
@@ -121,7 +121,7 @@
         {
             "id": "gemini-3-flash",
             "name": "Gemini 3 Flash",
-            "apiBase": "https://api.siliconflow.cn",
+            "apiBase": "http://107.173.101.155:8081",
             "apiKeyEnv": "SF_API_KEY",
             "supportsStreaming": true,
             "supportsWebSearch": true,
@@ -138,7 +138,7 @@
         {
             "id": "claude-sonnet-4-5",
             "name": "Claude Sonnet 4.5",
-            "apiBase": "https://api.siliconflow.cn",
+            "apiBase": "http://107.173.101.155:8081",
             "apiKeyEnv": "SF_API_KEY",
             "supportsStreaming": true,
             "supportsWebSearch": true,
@@ -155,7 +155,7 @@
         {
             "id": "claude-sonnet-4-5-thinking",
             "name": "Claude Sonnet 4.5 Thinking",
-            "apiBase": "https://api.siliconflow.cn",
+            "apiBase": "http://107.173.101.155:8081",
             "apiKeyEnv": "SF_API_KEY",
             "supportsStreaming": true,
             "supportsWebSearch": true,
@@ -172,7 +172,7 @@
         {
             "id": "claude-opus-4-5-thinking",
             "name": "Claude Opus 4.5 Thinking",
-            "apiBase": "https://api.siliconflow.cn",
+            "apiBase": "http://107.173.101.155:8081",
             "apiKeyEnv": "SF_API_KEY",
             "supportsStreaming": true,
             "supportsWebSearch": true,
