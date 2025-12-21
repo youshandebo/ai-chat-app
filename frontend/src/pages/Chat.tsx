@@ -57,8 +57,13 @@ export default function Chat() {
             setIsGenerating(true);
             let acc = ""; // Move acc here to be accessible in catch block
             try {
-              const payload = { messages: freshCurrent?.messages.concat([{ id: userMsgId, role: "user", content, timestamp: Date.now(), modelId }]) || [], stream: true } as any;
-              console.log("send payload", { modelId, payload });
+              const webSearchEnabled = localStorage.getItem('webSearchEnabled') === 'true';
+              const payload = {
+                messages: freshCurrent?.messages.concat([{ id: userMsgId, role: "user", content, timestamp: Date.now(), modelId }]) || [],
+                stream: true,
+                webSearch: webSearchEnabled
+              } as any;
+              console.log("send payload", { modelId, payload, webSearch: webSearchEnabled });
 
               // @ts-ignore
               const apiBase = import.meta.env.VITE_BACKEND_BASE || '';

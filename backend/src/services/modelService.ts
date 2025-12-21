@@ -6,7 +6,8 @@ export async function callModelAPI(
   messages: any,
   apiKey: string | undefined,
   onChunk?: (chunk: { content: string; done: boolean }) => void,
-  abortSignal?: AbortSignal
+  abortSignal?: AbortSignal,
+  webSearch: boolean = false
 ) {
   if (model.id === "deepseek-openai-mock") {
     const lastUser = Array.isArray(messages) ? [...messages].reverse().find((m: any) => m.role === "user") : null;
@@ -22,16 +23,24 @@ export async function callModelAPI(
       return { content: baseReply } as any;
     }
   }
-  const body =
-    model.messageFormat === "gemini"
-      ? JSON.stringify(messages)
-      : JSON.stringify({
-        model: model.id,
-        messages,
-        stream: true,
-        temperature: model.defaultParams?.temperature,
-        max_tokens: model.defaultParams?.maxTokens,
-      });
+
+  // Build request body with optional web_search parameter
+  const requestBody: any = model.messageFormat === "gemini"
+    ? messages
+    : {
+      model: model.id,
+      messages,
+      stream: true,
+      temperature: model.defaultParams?.temperature,
+      max_tokens: model.defaultParams?.maxTokens,
+    };
+
+  // Add web_search if enabled and model supports it
+  if (webSearch && model.supportsWebSearch && model.messageFormat !== "gemini") {
+    requestBody.web_search = true;
+  }
+
+  const body = JSON.stringify(requestBody);
 
   // DEBUG LOG
   console.log(`[ModelService] Sending to ${model.apiBase}:`, body.slice(0, 500));

@@ -18,8 +18,8 @@ router.get("/models", (req, res) => {
 
 router.post("/chat/:modelId", async (req, res) => {
   const { modelId } = req.params as any;
-  const { messages, stream = true } = req.body || {};
-  console.log("/api/chat", { origin: req.headers.origin, ip: req.ip, modelId });
+  const { messages, stream = true, webSearch = false } = req.body || {};
+  console.log("/api/chat", { origin: req.headers.origin, ip: req.ip, modelId, webSearch });
   const cfg = getModelConfig();
   const model = cfg.models.find((m: any) => m.id === modelId);
   if (!model) return res.status(404).json({ error: "模型不存在" });
@@ -73,7 +73,7 @@ router.post("/chat/:modelId", async (req, res) => {
         if (chunkCount % 10 === 0) console.log(`[Chat Stream] Writing chunk ${chunkCount}`);
         res.write(`data: ${JSON.stringify(chunk)}\n\n`);
         (res as any).flush?.(); // Ensure chunks are sent immediately
-      }, abortController.signal);
+      }, abortController.signal, webSearch);
       res.write("data: [DONE]\n\n");
       (res as any).flush?.();
       res.write(" ".repeat(1024) + "\n\n"); // Extra padding at the end
@@ -82,7 +82,7 @@ router.post("/chat/:modelId", async (req, res) => {
       // Record successful API call
       logCall();
     } else {
-      const result = await callModelAPI(useModel, transformed, useApiKey, undefined, abortController.signal);
+      const result = await callModelAPI(useModel, transformed, useApiKey, undefined, abortController.signal, webSearch);
       res.json(result || { content: "" });
       // Record successful API call
       logCall();
@@ -93,13 +93,6 @@ router.post("/chat/:modelId", async (req, res) => {
     logError();
     const m = String(e?.message || "").match(/HTTP (\d{3})/);
     const sc = m ? parseInt(m[1], 10) : 500;
-
-    // Special message for 429 (rate limit / quota exceeded)
-    if (sc === 429) {
-      return res.status(429).json({
-        error: "🚫 Key的额度用完了，请支持下这个网站哦❤️ 访问 /sponsor 页面了解如何支持我们！"
-      });
-    }
 
     // If it is 500, try to give more info if dev/admin (or just log it)
     res.status(sc).json({ error: `模型调用失败: ${e.message}` });

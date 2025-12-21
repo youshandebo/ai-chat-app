@@ -143,7 +143,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         </AnimatePresence>
         <AnimatePresence mode="popLayout">
           {overlayRunning && (
-            <motion.div key={key} className="absolute inset-0 z-40 bg-white dark:bg-dark-card" initial={{ scaleX: 1, originX: 0 }} animate={{ scaleX: 0 }} exit={{ scaleX: 0 }} transition={{ duration: 0.25 }} onAnimationComplete={() => setOverlayRunning(false)} />
+            <motion.div key={key} className="absolute inset-0 z-40 bg-gray-50 dark:bg-dark-bg" initial={{ scaleX: 1, originX: 0 }} animate={{ scaleX: 0 }} exit={{ scaleX: 0 }} transition={{ duration: 0.25 }} onAnimationComplete={() => setOverlayRunning(false)} />
           )}
         </AnimatePresence>
       </main>
