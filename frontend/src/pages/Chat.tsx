@@ -55,10 +55,14 @@ export default function Chat() {
             const controller = new AbortController();
             abortRef.current = controller;
             setIsGenerating(true);
+            let acc = ""; // Move acc here to be accessible in catch block
             try {
               const payload = { messages: freshCurrent?.messages.concat([{ id: userMsgId, role: "user", content, timestamp: Date.now(), modelId }]) || [], stream: true } as any;
               console.log("send payload", { modelId, payload });
-              const res = await fetch(`/api/chat/${modelId}`, {
+
+              // @ts-ignore
+              const apiBase = import.meta.env.VITE_BACKEND_BASE || '';
+              const res = await fetch(`${apiBase}/api/chat/${modelId}`, {
                 method: "POST",
                 mode: "cors",
                 headers: { "Content-Type": "application/json", "Accept": "text/event-stream" },
@@ -84,7 +88,6 @@ export default function Chat() {
                 const reader = res.body.getReader();
                 const decoder = new TextDecoder();
                 let buf = "";
-                let acc = "";
                 let hasReceivedContent = false;
                 for (; ;) {
                   const { value, done } = await reader.read();

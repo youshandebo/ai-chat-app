@@ -21,7 +21,6 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    console.log("Home loaded. Version: 2025-12-13 Fix Particles");
     fetch('/api/articles')
       .then(res => res.json())
       .then(data => {
@@ -69,7 +68,7 @@ export default function Home() {
           {[
             { title: "⚡ 多模型切换", desc: "一键在 Gemini / ChatGPT 等模型间切换，适配不同场景。" },
             { title: "🧠 上下文记忆", desc: "本地保存会话与消息，持续对话不丢失，支持重命名与删除。" },
-            { title: "🔒 隐私优先", desc: "数据仅存于本地浏览器，不上传后端；接口只转发模型请求。仅会捕捉敏感对话并记录在服务器端。" },
+            { title: "🔒 隐私优先", desc: "隐私优先：数据仅存于本地浏览器；API请求安全转发，无多余服务端存储。" },
           ].map((c, i) => (
             <motion.div
               key={c.title}

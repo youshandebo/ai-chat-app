@@ -5,7 +5,8 @@ export async function callModelAPI(
   model: any,
   messages: any,
   apiKey: string | undefined,
-  onChunk?: (chunk: { content: string; done: boolean }) => void
+  onChunk?: (chunk: { content: string; done: boolean }) => void,
+  abortSignal?: AbortSignal
 ) {
   if (model.id === "deepseek-openai-mock") {
     const lastUser = Array.isArray(messages) ? [...messages].reverse().find((m: any) => m.role === "user") : null;
@@ -75,6 +76,30 @@ export async function callModelAPI(
     new Promise<any>((resolve, reject) => {
       const { opts, client } = clientFactory(p);
       const req = client.request(opts, (res) => {
+        // If signal is already aborted, destroy immediately
+        if (abortSignal?.aborted) {
+          res.destroy();
+          req.destroy();
+          return reject(new Error('Aborted'));
+        }
+
+        // Listen for abort signal to destroy connection
+        const abortHandler = () => {
+          console.log('[ModelAPI] Abort signal received, destroying connection');
+          res.destroy();
+          req.destroy();
+          reject(new Error('Aborted by client'));
+        };
+        abortSignal?.addEventListener('abort', abortHandler, { once: true });
+
+        // Clean up abort listener when response ends
+        res.on('end', () => {
+          abortSignal?.removeEventListener('abort', abortHandler);
+        });
+        res.on('error', () => {
+          abortSignal?.removeEventListener('abort', abortHandler);
+        });
+
         const contentType = String(res.headers["content-type"] || "");
         let buffer = "";
         let isSSE = contentType.includes("text/event-stream");

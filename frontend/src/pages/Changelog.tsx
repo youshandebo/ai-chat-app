@@ -7,6 +7,25 @@ export default function Changelog() {
         <motion.h2 initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="text-2xl font-bold mb-4 text-gray-900 dark:text-white">更新公告</motion.h2>
 
         <div className="space-y-6">
+          {/* 2025-12-21 更新 */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.05 }}
+            className="rounded-lg border border-green-200 dark:border-green-900 bg-green-50 dark:bg-green-950/30 p-5 pb-8 relative"
+          >
+            <div className="text-gray-700 dark:text-green-100 pr-4 space-y-2">
+              <p>🚀 <strong>重磅更新</strong>：新增 10+ AI 模型！</p>
+              <p>🤖 新增模型：Gemini 3 Pro High/Low/Image、Gemini 3 Flash、Gemini 2.5 Pro、Gemini 2.5 Flash Thinking</p>
+              <p>🧠 新增模型：Claude Sonnet 4.5、Claude Sonnet 4.5 Thinking、Claude Opus 4.5 Thinking</p>
+              <p>📎 文件上传优化：支持 jpg/png 图片上传，上传后可继续输入问题</p>
+              <p>👍 新增投票系统：对 AI 回复点赞/点踩</p>
+              <p>💬 消息气泡优化：长内容自动换行，超长内容可展开/收起</p>
+              <p>🔧 后端优化：用户停止生成时，后端立即中断 API 请求，节省资源</p>
+            </div>
+            <div className="absolute right-4 bottom-3 text-xs text-green-500 dark:text-green-400">2025年12月21日</div>
+          </motion.div>
+
           {/* 2025-12-14 更新 */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}

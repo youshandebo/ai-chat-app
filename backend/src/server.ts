@@ -13,6 +13,7 @@ import articleRouter from "./routes/article";
 import uploadRouter from "./routes/upload";
 import sponsorRouter from "./routes/sponsor";
 import rssRouter from "./routes/rss";
+import voteRouter from "./routes/vote";
 import { metricsMiddleware } from "./services/metrics";
 
 dotenv.config();
@@ -144,6 +145,7 @@ app.use("/api", articleRouter);
 app.use("/api/admin", uploadRouter);
 app.use("/api", sponsorRouter);
 app.use("/api", rssRouter);
+app.use("/api", voteRouter);
 
 // Global error handler - must be last
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
