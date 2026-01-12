@@ -13,10 +13,11 @@ let calls: number[] = [];
 let errors: number[] = [];
 // New structure: log of all visits with timestamp
 let visitorLog: { ts: number; ip: string }[] = [];
+let modelUsage: Record<string, number> = {};
 
 function persist() {
   try {
-    const obj = { active, maxActive, maxHistory, calls, errors, visitorLog };
+    const obj = { active, maxActive, maxHistory, calls, errors, visitorLog, modelUsage };
     writeJsonAtomic(dataPath, obj);
   } catch (e) {
     console.error("Persist failed:", e);
@@ -60,6 +61,7 @@ function ensureLoaded() {
     } else {
       visitorLog = Array.isArray(obj.visitorLog) ? obj.visitorLog : [];
     }
+    modelUsage = typeof obj.modelUsage === 'object' && obj.modelUsage !== null ? obj.modelUsage : {};
   } else {
     console.log("Metrics file not found, using defaults");
     // File doesn't exist, ensure defaults
@@ -95,11 +97,22 @@ export function logVisit(ip: string) {
     console.error("visitorLog is undefined in logVisit! Re-initializing.");
     visitorLog = [];
   }
-  // Log every visit with timestamp
-  visitorLog.push({ ts: Date.now(), ip });
-  // Keep last 50000 visits to avoid unlimited growth
-  if (visitorLog.length > 50000) visitorLog.shift();
+  // Log every visit with timestamp (masked IP for privacy if needed, or hashed)
+  // Mask IP: 1.2.3.4 -> 1.2.3.***
+  const maskedIP = ip.split('.').slice(0, 3).join('.') + '.***';
+  visitorLog.push({ ts: Date.now(), ip: maskedIP });
+  // Keep last 10000 visits to avoid unlimited growth (reduced from 50000)
+  if (visitorLog.length > 10000) visitorLog.shift();
   persist();
+}
+
+export function logModelUsage(modelId: string) {
+  modelUsage[modelId] = (modelUsage[modelId] || 0) + 1;
+  persist();
+}
+
+export function getModelUsage() {
+  return modelUsage;
 }
 
 export function updateActive(count: number) {
@@ -252,7 +265,7 @@ export function metricsMiddleware(req: any, res: any, next: any) {
   // Extract first IP if x-forwarded-for contains multiple
   const cleanIP = typeof ip === 'string' ? ip.split(',')[0].trim() : ip;
 
-  console.log('[Metrics] Logging visit from IP:', cleanIP, 'Path:', req.path);
+  console.log('[Metrics] Logging visit (IP masked for privacy) Path:', req.path);
   logVisit(cleanIP);
   next();
 }

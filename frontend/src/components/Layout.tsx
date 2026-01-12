@@ -4,6 +4,9 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useChatStore } from "../store/useChatStore";
 import AnnouncementModal from "./AnnouncementModal";
 import { Menu, X } from "lucide-react";
+import Fireworks from "./Fireworks";
+import RedPacketRain from "./RedPacketRain";
+import NewYearGreetings from "./NewYearGreetings";
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   const loc = useLocation();
@@ -11,6 +14,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const [overlayRunning, setOverlayRunning] = useState<boolean>(false);
   const [key, setKey] = useState<string>("");
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [activeAnimation, setActiveAnimation] = useState<'none' | 'fireworks' | 'rain'>('none');
 
   React.useEffect(() => {
     setKey(loc.pathname);
@@ -30,13 +34,29 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     { path: "/chat", label: "开始聊天" },
     { path: "/changelog", label: "更新记录" },
     { path: "/sponsor", label: "赞助支持" },
+    { path: "/store", label: "商城" },
   ];
 
+  const handleAnnouncementClose = () => {
+    // Only play animation if theme is New Year (check DOM class for immediate effect)
+    if (!document.documentElement.classList.contains('theme-newyear')) return;
+
+    // Random animation
+    const rand = Math.random();
+    const type = rand > 0.5 ? 'fireworks' : 'rain';
+    setActiveAnimation(type);
+
+    // Stop after duration
+    setTimeout(() => {
+      setActiveAnimation('none');
+    }, 6000);
+  };
+
   return (
-    <div className="h-screen flex flex-col overflow-hidden">
+    <div className="h-screen flex flex-col overflow-hidden relative">
       <nav className="sticky top-0 z-30 bg-white/90 dark:bg-dark-card/90 backdrop-blur border-b border-gray-200 dark:border-dark-border">
         <div className="max-w-6xl mx-auto h-16 flex items-center justify-between px-4 sm:px-6">
-          <Link to="/" className="text-xl font-bold bg-gradient-to-r from-primary to-indigo-600 bg-clip-text text-transparent">
+          <Link to="/" className="text-xl font-bold bg-gradient-to-r from-primary to-cyan-500 bg-clip-text text-transparent">
             聚合AI · 对话
           </Link>
 
@@ -150,7 +170,11 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       <footer className="h-12 border-t border-gray-200 dark:border-dark-border flex items-center justify-center text-sm bg-white dark:bg-dark-card text-gray-500 dark:text-gray-400">
         © 2025 聚合AI · All Rights Reserved (v1.0 )
       </footer>
-      {loc.pathname !== "/admin" && <AnnouncementModal />}
+      {loc.pathname !== "/admin" && <AnnouncementModal onClose={handleAnnouncementClose} />}
+
+      {activeAnimation === 'fireworks' && <Fireworks />}
+      {activeAnimation === 'rain' && <RedPacketRain />}
+      {(activeAnimation === 'fireworks' || activeAnimation === 'rain') && <NewYearGreetings />}
     </div>
   );
 }

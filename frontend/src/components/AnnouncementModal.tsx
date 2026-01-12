@@ -4,7 +4,11 @@ import DOMPurify from "dompurify";
 
 const ANNOUNCEMENT_KEY = "lastAnnouncementTime";
 
-export default function AnnouncementModal() {
+interface AnnouncementModalProps {
+  onClose?: () => void;
+}
+
+export default function AnnouncementModal({ onClose }: AnnouncementModalProps) {
   const initialShow = (() => {
     try {
       const lastShow = localStorage.getItem(ANNOUNCEMENT_KEY);
@@ -18,15 +22,19 @@ export default function AnnouncementModal() {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setShow(false);
+      if (e.key === "Escape") {
+        setShow(false);
+        onClose?.();
+      }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, []);
+  }, [onClose]);
 
   const handleClose = () => {
     if (dontShowAgain) localStorage.setItem(ANNOUNCEMENT_KEY, new Date().toISOString());
     setShow(false);
+    onClose?.();
   };
 
   return (

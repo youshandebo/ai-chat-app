@@ -2,6 +2,34 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --color-primary: #00B4FF;
+}
+
+/* 新年主题 */
+.theme-newyear {
+  --color-primary: #D32F2F;
+  /* Red 700 */
+}
+
+.theme-newyear.dark {
+  --color-primary: #F44336;
+  /* Red 500 */
+}
+
+/* Decoration for new year */
+.theme-newyear body::before {
+  content: "";
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, #FFD700, #D32F2F, #FFD700);
+  z-index: 9999;
+  pointer-events: none;
+}
+
 html,
 body,
 #root {

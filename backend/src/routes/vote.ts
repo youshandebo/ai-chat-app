@@ -2,6 +2,7 @@ import express from 'express';
 import fs from 'fs';
 import path from 'path';
 import { writeJsonAtomic } from '../utils/fileUtils';
+import { requireAdmin } from '../middleware/auth';
 
 const router = express.Router();
 
@@ -69,7 +70,7 @@ router.post('/vote', (req, res) => {
 });
 
 // Get vote stats (for admin)
-router.get('/votes/stats', (req, res) => {
+router.get('/votes/stats', requireAdmin, (req, res) => {
     try {
         ensureVotesFile();
         const data: VotesData = JSON.parse(fs.readFileSync(votesPath, 'utf-8'));

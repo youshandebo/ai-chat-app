@@ -23,13 +23,13 @@ interface ChatState {
   chats: Chat[];
   tags: { id: string; name: string; parentId: string | null }[];
   currentChatId: string | null;
-  settings: { theme: "light" | "dark" | "auto"; sidebarCollapsed: boolean };
+  settings: { theme: "light" | "dark" | "auto" | "new-year"; sidebarCollapsed: boolean };
   createChat: (modelId: string) => void;
   addMessage: (chatId: string, message: Message) => void;
   updateMessage: (chatId: string, messageId: string, content: string) => void;
   setCurrentChat: (chatId: string) => void;
   updateChatModel: (chatId: string, modelId: string) => void;
-  setTheme: (theme: "light" | "dark" | "auto") => void;
+  setTheme: (theme: "light" | "dark" | "auto" | "new-year") => void;
   renameChat: (chatId: string, title: string) => void;
   deleteChat: (chatId: string) => void;
 }
@@ -73,10 +73,10 @@ export const useChatStore = create<ChatState>()(
           chats: state.chats.map((c) =>
             c.id === chatId
               ? {
-                  ...c,
-                  messages: c.messages.map((m) => (m.id === messageId ? { ...m, content } : m)),
-                  updatedAt: Date.now(),
-                }
+                ...c,
+                messages: c.messages.map((m) => (m.id === messageId ? { ...m, content } : m)),
+                updatedAt: Date.now(),
+              }
               : c
           ),
         }));

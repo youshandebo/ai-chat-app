@@ -1,15 +1,16 @@
 import express from "express";
-import { loadModels, getModelConfig } from "../config/models";
-import { getMetrics, getSeries } from "../services/metrics";
+import { getMetrics, getSeries, getModelUsage } from "../services/metrics";
+import { getModelConfig, saveModels } from "../config/models";
+import { loadModels } from "../config/models";
 
 const router = express.Router();
 
 router.post("/reload-models", (req, res) => {
   const auth = (req.get("authorization") || (req.headers["authorization"] as string) || "").trim();
   const token = process.env.ADMIN_TOKEN || "";
-  console.log("Admin access attempt:", { auth, expected: `Bearer ${token}` });
+  console.log("Admin access attempt:", { auth: auth ? "Bearer ******" : "[EMPTY]", expected: "Bearer ******" });
   if (auth !== `Bearer ${token}`) {
-    console.warn("Admin auth failed:", { received: auth, expectedTokenLength: token.length });
+    console.warn("Admin auth failed:", { authPassed: false });
     return res.status(403).json({ error: "无权访问: Token mismatch" });
   }
   try {
@@ -20,10 +21,50 @@ router.post("/reload-models", (req, res) => {
   }
 });
 
+// Get all models for admin (including disabled ones)
+router.get("/models", (req, res) => {
+  const auth = (req.get("authorization") || (req.headers["authorization"] as string) || "").trim();
+  const token = process.env.ADMIN_TOKEN || "";
+  if (auth !== `Bearer ${token}`) return res.status(403).json({ error: "无权访问" });
+
+  try {
+    const config = getModelConfig();
+    const usage = getModelUsage();
+
+    // Attach usage stats to model list
+    const models = config.models.map((m: any) => ({
+      ...m,
+      usage: usage[m.id] || 0
+    }));
+
+    res.json({ models });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Update models (reorder, toggle enabled, update fields)
+router.put("/models", (req, res) => {
+  const auth = (req.get("authorization") || (req.headers["authorization"] as string) || "").trim();
+  const token = process.env.ADMIN_TOKEN || "";
+  if (auth !== `Bearer ${token}`) return res.status(403).json({ error: "无权访问" });
+
+  try {
+    const { models } = req.body;
+    if (!Array.isArray(models)) {
+      return res.status(400).json({ error: "models 必须是数组" });
+    }
+    saveModels(models);
+    res.json({ success: true });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 router.get("/health", (req, res) => {
   const auth = (req.get("authorization") || (req.headers["authorization"] as string) || "").trim();
   const token = process.env.ADMIN_TOKEN || "";
-  console.log("Health check access attempt:", { auth, expected: `Bearer ${token}` });
+  console.log("Health check access attempt:", { auth: auth ? "Bearer ******" : "[EMPTY]" });
   if (auth !== `Bearer ${token}`) {
     return res.status(403).json({ error: "无权访问" });
   }

@@ -22,13 +22,25 @@ export default function Home() {
 
   useEffect(() => {
     fetch('/api/articles')
-      .then(res => res.json())
+      .then(res => {
+        if (!res.ok) {
+          throw new Error(`HTTP error! status: ${res.status}`);
+        }
+        return res.json();
+      })
       .then(data => {
-        setArticles(data);
+        // 确保data是数组
+        if (Array.isArray(data)) {
+          setArticles(data);
+        } else {
+          console.warn('Articles data is not an array:', data);
+          setArticles([]);
+        }
         setLoading(false);
       })
       .catch(err => {
         console.error('Failed to fetch articles:', err);
+        setArticles([]); // 确保articles是空数组
         setLoading(false);
       });
   }, []);

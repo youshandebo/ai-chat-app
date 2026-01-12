@@ -8,7 +8,7 @@ export async function callModelAPI(
   onChunk?: (chunk: { content: string; done: boolean }) => void,
   abortSignal?: AbortSignal,
   webSearch: boolean = false
-) {
+): Promise<any> {
   if (model.id === "deepseek-openai-mock") {
     const lastUser = Array.isArray(messages) ? [...messages].reverse().find((m: any) => m.role === "user") : null;
     const baseReply = lastUser?.content ? `好的，已收到：${lastUser.content}` : "你好，我是模拟回复";
@@ -21,6 +21,67 @@ export async function callModelAPI(
       return { content: baseReply } as any;
     } else {
       return { content: baseReply } as any;
+    }
+  }
+  // Priority fallback for Gemini 2.5 Flash and Gemini 2.5 Pro - try backup endpoint if primary fails
+  if ((model.id === 'gemini-2.5-flash' || model.id === 'gemini-2.5-pro' || model.id === 'gemini-2.5-flash-sf') && model.apiBaseBackup && !(model as any)._isFallbackAttempt) {
+    try {
+      console.log(`[ModelService] ✅ 优先使用主API地址: ${model.apiBase}`);
+      const primaryModel = {
+        ...model,
+        _isFallbackAttempt: true
+      };
+
+      // 使用较长的超时时间
+      const primaryController = new AbortController();
+      const primaryTimeoutId = setTimeout(() => {
+        console.log(`[ModelService] ⚠️ 主API超时，即将回退到备用地址: ${model.apiBaseBackup}`);
+        primaryController.abort();
+      }, 15000); // 15秒超时
+
+      try {
+        const result = await callModelAPI(primaryModel, messages, apiKey, onChunk, primaryController.signal, webSearch);
+        clearTimeout(primaryTimeoutId);
+        console.log(`[ModelService] ✅ 主API成功完成`);
+        return result;
+      } catch (err) {
+        clearTimeout(primaryTimeoutId);
+        console.warn(`[ModelService] ⚠️ 主API失败:`, String(err).slice(0, 200));
+        // 继续执行备用逻辑
+        throw err;
+      }
+    } catch (e) {
+      console.warn(`[ModelService] ⚠️ 主API异常，回退到备用地址:`, String(e).slice(0, 200));
+      
+      // 使用备用API重试
+      try {
+        console.log(`[ModelService] 🔄 尝试备用API地址: ${model.apiBaseBackup}`);
+        const backupModel = {
+          ...model,
+          apiBase: model.apiBaseBackup,
+          _isFallbackAttempt: true
+        };
+        
+        const backupController = new AbortController();
+        const backupTimeoutId = setTimeout(() => {
+          console.log(`[ModelService] ⚠️ 备用API超时`);
+          backupController.abort();
+        }, 15000);
+
+        try {
+          const result = await callModelAPI(backupModel, messages, apiKey, onChunk, backupController.signal, webSearch);
+          clearTimeout(backupTimeoutId);
+          console.log(`[ModelService] ✅ 备用API成功完成`);
+          return result;
+        } catch (backupErr) {
+          clearTimeout(backupTimeoutId);
+          console.error(`[ModelService] ❌ 备用API也失败:`, String(backupErr).slice(0, 200));
+          throw backupErr;
+        }
+      } catch (backupError) {
+        console.error(`[ModelService] ❌ 所有API均失败`, String(backupError).slice(0, 200));
+        throw backupError;
+      }
     }
   }
 
@@ -43,15 +104,15 @@ export async function callModelAPI(
   const body = JSON.stringify(requestBody);
 
   // DEBUG LOG
-  console.log(`[ModelService] Sending to ${model.apiBase}:`, body.slice(0, 500));
+  console.log(`[ModelService] Sending to ${model.apiBase}:`, body.length > 100 ? body.slice(0, 100) + "... [MASKED]" : body);
 
   const base = new URL(model.apiBase);
   const candidates: string[] = [];
   if (model.apiPaths?.chat) candidates.push(model.apiPaths.chat);
   if ((model.apiPaths as any)?.chat_alt) candidates.push((model.apiPaths as any).chat_alt);
   if (model.messageFormat === "gemini") {
-    candidates.push("/models/gemini-2.5-flash:streamGenerateContent");
-    candidates.push("/models/gemini-2.0-flash:streamGenerateContent");
+    // Only use the ID specified by the model configuration
+    candidates.push(`/models/${model.id}:streamGenerateContent`);
   } else {
     candidates.push("/v1/chat/completions");
   }
@@ -117,7 +178,7 @@ export async function callModelAPI(
 
         res.on("data", (chunk) => {
           const str = chunk.toString();
-          console.log(`[ModelAPI Data] Chunk size: ${str.length}, content: ${JSON.stringify(str.slice(0, 50))}`);
+          console.log(`[ModelAPI Data] Chunk size: ${str.length}, content: [MASKED]`);
 
           buffer += str;
 
@@ -143,8 +204,9 @@ export async function callModelAPI(
               const trimmed = line.trim();
               if (trimmed.startsWith("data:")) {
                 const data = trimmed.slice(5).trim();
+                console.log(`[ModelAPI] 处理data行 (长度: ${data.length})`);
                 if (data === "[DONE]") {
-                  console.log("[ModelAPI] Stream [DONE]");
+                  console.log("[ModelAPI] ✅ 收到[DONE]信号");
                   onChunk?.({ content: "", done: true });
                   resolve(null);
                 } else {
@@ -157,12 +219,13 @@ export async function callModelAPI(
                       "";
 
                     if (content) {
+                      console.log(`[ModelAPI] ✅ 提取到内容 (长度: ${content.length})`);
                       onChunk?.({ content, done: false });
                     } else {
-                      console.log("[ModelAPI] Parsed JSON but no content found", JSON.stringify(parsed).slice(0, 100));
+                      console.log(`[ModelAPI] ⚠️ 解析成功但无content:`, JSON.stringify(parsed).slice(0, 150));
                     }
                   } catch (e) {
-                    console.log("[ModelAPI] JSON Parse Error", e);
+                    console.log("[ModelAPI] ❌ JSON解析失败", e);
                   }
                 }
               }
@@ -201,6 +264,14 @@ export async function callModelAPI(
         }
       });
       req.on("error", reject);
+
+      // Set 30s timeout for overall request
+      req.setTimeout(30000, () => {
+        console.warn(`[ModelAPI] Request timeout (30s) for path: ${opts.path}`);
+        req.destroy();
+        reject(new Error("Request Timeout (30s)"));
+      });
+
       req.write(body);
       req.end();
     });

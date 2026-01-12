@@ -9,6 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@fingerprintjs/fingerprintjs": "^5.0.1",
     "@types/prismjs": "^1.26.5",
     "dompurify": "^3.0.5",
     "express": "^5.2.1",

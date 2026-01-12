@@ -14,6 +14,9 @@ import uploadRouter from "./routes/upload";
 import sponsorRouter from "./routes/sponsor";
 import rssRouter from "./routes/rss";
 import voteRouter from "./routes/vote";
+import productRouter from "./routes/product";
+import keysRouter from "./routes/keys";
+import settingsRouter from "./routes/settings";
 import { metricsMiddleware } from "./services/metrics";
 
 dotenv.config();
@@ -32,6 +35,7 @@ if (!fs.existsSync(logsDir)) {
 }
 
 const app = express();
+app.set('trust proxy', 1); // Trust first proxy (like Cloudflare/Nginx)
 const PORT = parseInt(process.env.PORT || "6555");
 
 // Enhanced logging
@@ -104,8 +108,7 @@ app.use(
       const devOrigins = ["http://localhost:5173", "http://localhost:6556"];
 
       const isAllowed =
-        corsOrigin === "*"
-        || allowedOrigins.includes(origin)
+        (corsOrigin !== "*" && allowedOrigins.includes(origin))
         || devOrigins.includes(origin); // Fallback for dev ease-of-use
 
       if (isAllowed) {
@@ -146,6 +149,9 @@ app.use("/api/admin", uploadRouter);
 app.use("/api", sponsorRouter);
 app.use("/api", rssRouter);
 app.use("/api", voteRouter);
+app.use("/api", productRouter);
+app.use("/api", keysRouter);
+app.use("/api", settingsRouter);
 
 // Global error handler - must be last
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {

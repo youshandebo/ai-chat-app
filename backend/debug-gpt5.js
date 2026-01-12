@@ -1,7 +1,7 @@
 const https = require('https');
 
 // Config from user
-const apiKey = 'sk-mfCIlbSZ0HVsNmLdLGhOoJJLaF9fwpkiSDi0Uu14YgFVFLjR';
+const apiKey = process.env.VECTORENGINE_API_KEY || 'your_key_here';
 const hostname = 'api.vectorengine.ai';
 const path = '/v1/chat/completions'; // Correct path from previous models.json check
 

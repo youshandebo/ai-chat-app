@@ -1,6 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { useChatStore } from "../store/useChatStore";
+import { getFingerprint } from "../utils/fingerprint";
+import { getStoredKeys } from "../utils/keyStorage";
+import AbuseWarningModal from "../components/AbuseWarningModal";
+import ActivationModal from "../components/ActivationModal";
 import Sidebar from "../components/Sidebar";
 import MessageList from "../components/MessageList";
 import InputBox from "../components/InputBox";
@@ -10,6 +14,8 @@ export default function Chat() {
   const { chats, currentChatId, createChat, addMessage, updateMessage, setCurrentChat } = useChatStore();
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string>("");
+  const [showAbuseWarning, setShowAbuseWarning] = useState(false);
+  const [showActivation, setShowActivation] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
   const current = useMemo(() => chats.find((c) => c.id === currentChatId), [chats, currentChatId]);
 
@@ -23,7 +29,7 @@ export default function Chat() {
   }, []);
   return (
     <div className="flex h-full">
-      <Sidebar />
+      <Sidebar onOpenActivation={() => setShowActivation(true)} />
       <div className="flex-1 flex flex-col">
         <div className="h-14 border-b border-gray-200 dark:border-dark-border flex items-center px-4 bg-white dark:bg-dark-card">
           <ModelSelector />
@@ -57,6 +63,28 @@ export default function Chat() {
             setIsGenerating(true);
             let acc = ""; // Move acc here to be accessible in catch block
             try {
+              // Refresh activation key balance before sending message
+              const storedKeys = getStoredKeys();
+              const lastKey = storedKeys.pop();
+              if (lastKey) {
+                try {
+                  // @ts-ignore
+                  const apiBase = import.meta.env.VITE_BACKEND_BASE || '';
+                  const balanceRes = await fetch(`${apiBase}/api/keys/balance`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ key: lastKey })
+                  });
+                  if (!balanceRes.ok) {
+                    // If balance check fails, the key might be invalid
+                    console.warn(`Invalid activation key: ${lastKey}`);
+                  }
+                } catch (e) {
+                  console.warn("Failed to check balance:", e);
+                }
+              }
+              
+              const fingerprint = await getFingerprint();
               const webSearchEnabled = localStorage.getItem('webSearchEnabled') === 'true';
               const payload = {
                 messages: freshCurrent?.messages.concat([{ id: userMsgId, role: "user", content, timestamp: Date.now(), modelId }]) || [],
@@ -67,13 +95,26 @@ export default function Chat() {
 
               // @ts-ignore
               const apiBase = import.meta.env.VITE_BACKEND_BASE || '';
-              const res = await fetch(`${apiBase}/api/chat/${modelId}`, {
+              const apiUrl = `${apiBase}/api/chat/${modelId}`;
+              const res = await fetch(apiUrl, {
                 method: "POST",
                 mode: "cors",
-                headers: { "Content-Type": "application/json", "Accept": "text/event-stream" },
+                headers: {
+                  "Content-Type": "application/json",
+                  "Accept": "text/event-stream",
+                  "X-Device-Fingerprint": fingerprint,
+                  "X-Activation-Key": lastKey || ""
+                },
                 body: JSON.stringify(payload),
                 signal: controller.signal,
               });
+
+              if (res.headers.get("X-Usage-Warning") === "true") {
+                if (!sessionStorage.getItem("abuse_warning_shown")) {
+                  setShowAbuseWarning(true);
+                }
+              }
+
               if (!res.ok) {
                 let errorMessage = `HTTP ${res.status}`;
                 try {
@@ -111,7 +152,7 @@ export default function Chat() {
                           const chunk = parsed.content || parsed.choices?.[0]?.delta?.content || "";
                           if (chunk) {
                             if (!hasReceivedContent) {
-                              acc = chunk; // Replace "Thinking..." with first chunk
+                              acc = chunk;
                               hasReceivedContent = true;
                             } else {
                               acc += chunk;
@@ -155,6 +196,17 @@ export default function Chat() {
           }} />
         </div>
       </div>
+      <AbuseWarningModal
+        isOpen={showAbuseWarning}
+        onClose={() => {
+          sessionStorage.setItem("abuse_warning_shown", "true");
+          setShowAbuseWarning(false);
+        }}
+      />
+      <ActivationModal
+        isOpen={showActivation}
+        onClose={() => setShowActivation(false)}
+      />
     </div>
   );
 }

@@ -19,8 +19,18 @@ import {
     Save,
     Edit,
     Trash2,
-    Upload
+    Upload,
+    ShoppingBag,
+    Package,
+    Palette,
+    Key,
+    Copy,
+    GripVertical,
+    Eye,
+    EyeOff,
+    Coins
 } from 'lucide-react';
+import { Reorder } from "framer-motion";
 
 interface MetricSeries {
     label: string;
@@ -59,6 +69,27 @@ interface Sponsor {
     date: number;
 }
 
+interface Product {
+    id: string;
+    name: string;
+    description: string;
+    price: string;
+    image: string;
+    afdianLink?: string;
+    enabled: boolean;
+    createdAt: number;
+    updatedAt: number;
+}
+
+interface AdminModel {
+    id: string;
+    name: string;
+    enabled: boolean;
+    creditCost: number;
+    usage: number;
+    [key: string]: any;
+}
+
 const Admin = () => {
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [password, setPassword] = useState('');
@@ -66,7 +97,7 @@ const Admin = () => {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
 
-    const [activeTab, setActiveTab] = useState<'dashboard' | 'articles' | 'sponsors'>('dashboard');
+    const [activeTab, setActiveTab] = useState<'dashboard' | 'articles' | 'sponsors' | 'products' | 'keys' | 'models'>('dashboard');
     const [timeRange, setTimeRange] = useState<'24h' | '7d' | '30d' | '365d'>('24h');
     const [metricType, setMetricType] = useState<keyof MetricSeries>('visits');
     const [metrics, setMetrics] = useState<MetricsData | null>(null);
@@ -84,9 +115,24 @@ const Admin = () => {
 
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const avatarInputRef = useRef<HTMLInputElement>(null);
+    const productImageRef = useRef<HTMLInputElement>(null);
+
+    // Products state
+    const [products, setProducts] = useState<Product[]>([]);
+    const [isEditingProduct, setIsEditingProduct] = useState(false);
+    const [editingProduct, setEditingProduct] = useState<Partial<Product>>({});
+    const [productImageUploading, setProductImageUploading] = useState(false);
+
+    // Theme state
+    const [currentTheme, setCurrentTheme] = useState('default');
+    const [keysData, setKeysData] = useState<{ unused: string[], activated: Record<string, any> }>({ unused: [], activated: {} });
+    const [keyGenerations, setKeyGenerations] = useState(1);
+
+    // Models state
+    const [adminModels, setAdminModels] = useState<AdminModel[]>([]);
 
     useEffect(() => {
-        const token = localStorage.getItem('admin_token');
+        const token = sessionStorage.getItem('admin_token');
         if (token) {
             setIsAuthenticated(true);
         } else {
@@ -103,15 +149,90 @@ const Admin = () => {
                 fetchArticles();
             } else if (activeTab === 'sponsors') {
                 fetchSponsors();
+            } else if (activeTab === 'products') {
+                fetchProducts();
+            } else if (activeTab === 'keys') {
+                fetchKeys();
+            } else if (activeTab === 'models') {
+                fetchAdminModels();
             }
         }
+        fetchTheme();
     }, [isAuthenticated, activeTab, timeRange]);
+
+    const fetchTheme = async () => {
+        try {
+            const res = await fetch('/api/settings/theme');
+            const data = await res.json();
+            setCurrentTheme(data.theme || 'default');
+        } catch (e) { console.error(e); }
+    };
+
+    const fetchKeys = async () => {
+        try {
+            const res = await fetch('/api/admin/keys', {
+                headers: { Authorization: `Bearer ${sessionStorage.getItem('admin_token')}` }
+            });
+            if (res.ok) {
+                const data = await res.json();
+                setKeysData(data);
+            }
+        } catch (e) { console.error('Failed to fetch keys', e); }
+    };
+
+    const handleGenerateKeys = async () => {
+        try {
+            const res = await fetch('/api/admin/keys/generate', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${sessionStorage.getItem('admin_token')}`
+                },
+                body: JSON.stringify({ count: keyGenerations })
+            });
+            if (res.ok) {
+                fetchKeys();
+                alert('生成成功');
+            }
+        } catch (e) {
+            console.error(e);
+            alert('生成失败');
+        }
+    };
+
+
+    const handleUpdateTheme = async (theme: string) => {
+        try {
+            const token = sessionStorage.getItem('admin_token');
+            const res = await fetch('/api/admin/settings/theme', {
+                method: 'PUT',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ theme })
+            });
+            if (res.ok) {
+                const data = await res.json();
+                setCurrentTheme(data.theme);
+                // Apply immediately
+                if (data.theme === 'new-year') {
+                    document.documentElement.classList.add('theme-newyear');
+                } else {
+                    document.documentElement.classList.remove('theme-newyear');
+                }
+                alert('主题已更新');
+            }
+        } catch (e) {
+            alert('更新失败');
+        }
+    };
 
     // --- Handlers: Auth ---
     const handleLogin = (e: React.FormEvent) => {
         e.preventDefault();
         if (password) {
-            localStorage.setItem('admin_token', password);
+            sessionStorage.setItem('admin_token', password);
             setIsAuthenticated(true);
             setLoginError('');
         } else {
@@ -120,7 +241,7 @@ const Admin = () => {
     };
 
     const handleLogout = () => {
-        localStorage.removeItem('admin_token');
+        sessionStorage.removeItem('admin_token');
         setIsAuthenticated(false);
         setMetrics(null);
         setArticles([]);
@@ -131,7 +252,7 @@ const Admin = () => {
     const fetchSponsors = async () => {
         try {
             setLoading(true);
-            const token = localStorage.getItem('admin_token');
+            const token = sessionStorage.getItem('admin_token');
             const res = await fetch('/api/sponsors');
             // Public endpoint doesn't need auth, but admin endpoint might be better if we want more details?
             // Actually let's use public for listing, but we need editing.
@@ -151,7 +272,7 @@ const Admin = () => {
     const handleSaveSponsor = async () => {
         try {
             setSaveStatus('saving');
-            const token = localStorage.getItem('admin_token');
+            const token = sessionStorage.getItem('admin_token');
             const isNew = !editingSponsor.id;
             const url = isNew ? '/api/admin/sponsors' : `/api/admin/sponsors/${editingSponsor.id}`;
             const method = isNew ? 'POST' : 'PUT';
@@ -182,7 +303,7 @@ const Admin = () => {
         if (!confirm('确定要删除这位赞助者吗？')) return;
 
         try {
-            const token = localStorage.getItem('admin_token');
+            const token = sessionStorage.getItem('admin_token');
             const res = await fetch(`/api/admin/sponsors/${id}`, {
                 method: 'DELETE',
                 headers: { 'Authorization': `Bearer ${token}` }
@@ -196,10 +317,106 @@ const Admin = () => {
         }
     };
 
+    // --- Product Handlers ---
+    const fetchProducts = async () => {
+        try {
+            setLoading(true);
+            const token = sessionStorage.getItem('admin_token');
+            const res = await fetch('/api/admin/products', {
+                headers: { 'Authorization': `Bearer ${token}` },
+                cache: 'no-store'
+            });
+            if (!res.ok) throw new Error('Failed to fetch products');
+            const data = await res.json();
+            setProducts(data);
+        } catch (err) {
+            console.error(err);
+            setError('无法加载商品列表');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleSaveProduct = async () => {
+        try {
+            setSaveStatus('saving');
+            const token = sessionStorage.getItem('admin_token');
+            const isNew = !editingProduct.id;
+            const url = isNew ? '/api/admin/products' : `/api/admin/products/${editingProduct.id}`;
+            const method = isNew ? 'POST' : 'PUT';
+
+            const res = await fetch(url, {
+                method,
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    ...editingProduct,
+                    enabled: editingProduct.enabled !== false
+                })
+            });
+
+            if (!res.ok) throw new Error('Failed to save product');
+
+            setSaveStatus('success');
+            setTimeout(() => setSaveStatus(''), 2000);
+            setIsEditingProduct(false);
+            fetchProducts();
+        } catch (err) {
+            console.error(err);
+            setSaveStatus('error');
+            alert('保存失败');
+        }
+    };
+
+    const handleDeleteProduct = async (id: string) => {
+        if (!confirm('确定要删除这个商品吗？')) return;
+
+        try {
+            const token = sessionStorage.getItem('admin_token');
+            const res = await fetch(`/api/admin/products/${id}`, {
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+
+            if (!res.ok) throw new Error('Failed to delete product');
+            fetchProducts();
+        } catch (err) {
+            console.error(err);
+            alert('删除失败');
+        }
+    };
+
+    const handleProductImageUpload = async (file: File) => {
+        try {
+            setProductImageUploading(true);
+            const formData = new FormData();
+            formData.append('image', file);
+
+            const token = sessionStorage.getItem('admin_token');
+            const res = await fetch('/api/admin/upload-image', {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` },
+                body: formData
+            });
+
+            if (!res.ok) throw new Error('Upload failed');
+
+            const data = await res.json();
+            setEditingProduct(prev => ({ ...prev, image: data.url }));
+        } catch (err) {
+            console.error(err);
+            alert('图片上传失败');
+        } finally {
+            setProductImageUploading(false);
+        }
+    };
+
     const fetchMetrics = async () => {
         try {
             setLoading(true);
-            const token = localStorage.getItem('admin_token');
+            const token = sessionStorage.getItem('admin_token');
             if (!token) throw new Error('Unauthorized');
 
             const res = await fetch(`/api/admin/metrics?range=${timeRange}`, {
@@ -228,7 +445,7 @@ const Admin = () => {
     const fetchArticles = async () => {
         try {
             setLoading(true);
-            const token = localStorage.getItem('admin_token');
+            const token = sessionStorage.getItem('admin_token');
             const res = await fetch('/api/admin/articles', {
                 headers: { 'Authorization': `Bearer ${token}` },
                 cache: 'no-store'
@@ -247,7 +464,7 @@ const Admin = () => {
     const handleSaveArticle = async () => {
         try {
             setSaveStatus('saving');
-            const token = localStorage.getItem('admin_token');
+            const token = sessionStorage.getItem('admin_token');
             const isNew = !editingArticle.id;
             const url = isNew ? '/api/admin/articles' : `/api/admin/articles/${editingArticle.id}`;
             const method = isNew ? 'POST' : 'PUT';
@@ -282,7 +499,7 @@ const Admin = () => {
         if (!confirm('确定要删除这篇文章吗？此操作不可恢复。')) return;
 
         try {
-            const token = localStorage.getItem('admin_token');
+            const token = sessionStorage.getItem('admin_token');
             const res = await fetch(`/api/admin/articles/${id}`, {
                 method: 'DELETE',
                 headers: { 'Authorization': `Bearer ${token}` }
@@ -303,7 +520,7 @@ const Admin = () => {
             const formData = new FormData();
             formData.append('image', file);
 
-            const token = localStorage.getItem('admin_token');
+            const token = sessionStorage.getItem('admin_token');
             const res = await fetch('/api/admin/upload-avatar', {
                 method: 'POST',
                 headers: { 'Authorization': `Bearer ${token}` },
@@ -341,6 +558,58 @@ const Admin = () => {
         }
     };
 
+    const fetchAdminModels = async () => {
+        try {
+            setLoading(true);
+            const token = sessionStorage.getItem('admin_token');
+            const res = await fetch('/api/admin/models', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (!res.ok) throw new Error('Failed to fetch models');
+            const data = await res.json();
+            setAdminModels(data.models);
+        } catch (err) {
+            console.error(err);
+            setError('无法加载模型列表');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleSaveModels = async (modelsToSave?: AdminModel[]) => {
+        try {
+            setSaveStatus('saving');
+            const token = sessionStorage.getItem('admin_token');
+            const res = await fetch('/api/admin/models', {
+                method: 'PUT',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ models: modelsToSave || adminModels })
+            });
+
+            if (!res.ok) throw new Error('Failed to save models');
+
+            setSaveStatus('success');
+            setTimeout(() => setSaveStatus(''), 2000);
+            fetchAdminModels();
+        } catch (err) {
+            console.error(err);
+            setSaveStatus('error');
+            alert('保存失败');
+        }
+    };
+
+    const handleUpdateModelField = (id: string, field: keyof AdminModel, value: any) => {
+        const updatedModels = adminModels.map(m => m.id === id ? { ...m, [field]: value } : m);
+        setAdminModels(updatedModels);
+        // Auto-save when enabled field is changed
+        if (field === 'enabled') {
+            handleSaveModels(updatedModels);
+        }
+    };
+
     const handleImageUpload = async (file: File) => {
         try {
             const formData = new FormData();
@@ -349,7 +618,7 @@ const Admin = () => {
             const renamedFile = new File([file], safeName, { type: file.type });
             formData.append('image', renamedFile);
 
-            const token = localStorage.getItem('admin_token');
+            const token = sessionStorage.getItem('admin_token');
             const res = await fetch('/api/admin/upload-image', {
                 method: 'POST',
                 headers: { 'Authorization': `Bearer ${token}` },
@@ -620,6 +889,46 @@ const Admin = () => {
                             >
                                 赞助者
                             </button>
+                            <button
+                                onClick={() => setActiveTab('products')}
+                                className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${activeTab === 'products'
+                                    ? 'bg-white dark:bg-gray-700 text-primary shadow-sm'
+                                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                                    }`}
+                            >
+                                商品管理
+                            </button>
+                            <button
+                                onClick={() => setActiveTab('keys')}
+                                className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${activeTab === 'keys'
+                                    ? 'bg-white dark:bg-gray-700 text-primary shadow-sm'
+                                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                                    }`}
+                            >
+                                密钥管理
+                            </button>
+                            <button
+                                onClick={() => setActiveTab('models')}
+                                className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${activeTab === 'models'
+                                    ? 'bg-white dark:bg-gray-700 text-primary shadow-sm'
+                                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                                    }`}
+                            >
+                                模型管理
+                            </button>
+                        </div>
+
+                        {/* Theme Switcher */}
+                        <div className="flex items-center gap-2 bg-white dark:bg-dark-card border border-gray-200 dark:border-dark-border rounded-lg p-1.5">
+                            <Palette className="w-4 h-4 text-gray-500" />
+                            <select
+                                value={currentTheme}
+                                onChange={(e) => handleUpdateTheme(e.target.value)}
+                                className="bg-transparent text-sm border-none focus:ring-0 text-gray-700 dark:text-gray-300"
+                            >
+                                <option value="default">默认主题</option>
+                                <option value="new-year">新年主题</option>
+                            </select>
                         </div>
 
                         <button
@@ -985,7 +1294,7 @@ const Admin = () => {
                                                     <tr key={article.id} className="border-b border-gray-200 dark:border-dark-border hover:bg-gray-50 dark:hover:bg-dark-bg/50 transition-colors">
                                                         <td className="py-4 px-4">
                                                             <div className="font-medium text-gray-900 dark:text-white">{article.title}</div>
-                                                            {article.tags && article.tags.length > 0 && (
+                                                            {Array.isArray(article.tags) && article.tags.length > 0 && (
                                                                 <div className="flex gap-1 mt-1">
                                                                     {article.tags.slice(0, 3).map(tag => (
                                                                         <span key={tag} className="text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 px-2 py-0.5 rounded">
@@ -1263,6 +1572,443 @@ const Admin = () => {
                                 )}
                             </div>
                         )}
+                    </div>
+                )}
+
+                {activeTab === 'products' && (
+                    // --- Products View ---
+                    <div className="space-y-6">
+                        {!isEditingProduct && (
+                            <div className="flex items-center justify-between">
+                                <h2 className="text-xl font-bold text-gray-900 dark:text-white">商品管理</h2>
+                                <button
+                                    onClick={() => {
+                                        setEditingProduct({ enabled: true });
+                                        setIsEditingProduct(true);
+                                    }}
+                                    className="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary/90 text-white rounded-lg transition-colors font-medium"
+                                >
+                                    <Plus className="w-4 h-4" />
+                                    添加商品
+                                </button>
+                            </div>
+                        )}
+
+                        {isEditingProduct ? (
+                            <div className="bg-white dark:bg-dark-card p-6 rounded-xl border border-gray-200 dark:border-dark-border shadow-sm">
+                                <div className="flex items-center justify-between mb-6">
+                                    <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+                                        {editingProduct.id ? '编辑商品' : '添加商品'}
+                                    </h2>
+                                    <button
+                                        onClick={() => setIsEditingProduct(false)}
+                                        className="p-2 hover:bg-gray-100 dark:hover:bg-dark-bg rounded-lg transition-colors"
+                                    >
+                                        <X className="w-5 h-5 text-gray-500" />
+                                    </button>
+                                </div>
+
+                                <div className="space-y-6">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                                商品名称
+                                            </label>
+                                            <input
+                                                type="text"
+                                                value={editingProduct.name || ''}
+                                                onChange={e => setEditingProduct(prev => ({ ...prev, name: e.target.value }))}
+                                                className="w-full px-4 py-2 border border-gray-300 dark:border-dark-border rounded-lg bg-white dark:bg-dark-bg text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"
+                                                placeholder="输入商品名称"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                                价格 (元)
+                                            </label>
+                                            <input
+                                                type="text"
+                                                value={editingProduct.price || ''}
+                                                onChange={e => setEditingProduct(prev => ({ ...prev, price: e.target.value }))}
+                                                className="w-full px-4 py-2 border border-gray-300 dark:border-dark-border rounded-lg bg-white dark:bg-dark-bg text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"
+                                                placeholder="例如: 9.99"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                            商品描述
+                                        </label>
+                                        <textarea
+                                            value={editingProduct.description || ''}
+                                            onChange={e => setEditingProduct(prev => ({ ...prev, description: e.target.value }))}
+                                            className="w-full h-24 p-4 border border-gray-300 dark:border-dark-border rounded-lg bg-white dark:bg-dark-bg text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent resize-none"
+                                            placeholder="输入商品简短描述"
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                            爱发电商品链接 (选填)
+                                        </label>
+                                        <input
+                                            type="text"
+                                            value={editingProduct.afdianLink || ''}
+                                            onChange={e => setEditingProduct(prev => ({ ...prev, afdianLink: e.target.value }))}
+                                            className="w-full px-4 py-2 border border-gray-300 dark:border-dark-border rounded-lg bg-white dark:bg-dark-bg text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"
+                                            placeholder="例如: https://afdian.com/item/..."
+                                        />
+                                        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                            如果不填，点击购买将跳转到爱发电个人主页
+                                        </p>
+                                    </div>
+
+                                    <div className="flex items-center gap-2">
+                                        <input
+                                            type="checkbox"
+                                            id="productEnabled"
+                                            checked={editingProduct.enabled !== false}
+                                            onChange={e => setEditingProduct(prev => ({ ...prev, enabled: e.target.checked }))}
+                                            className="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
+                                        />
+                                        <label htmlFor="productEnabled" className="ml-2 block text-sm text-gray-900 dark:text-gray-300">
+                                            上架销售
+                                        </label>
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                            商品图片
+                                        </label>
+                                        <div
+                                            className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors ${productImageUploading ? 'opacity-50 pointer-events-none' : 'hover:border-primary hover:bg-primary/5'} ${editingProduct.image ? 'border-primary' : 'border-gray-300 dark:border-dark-border'}`}
+                                            onClick={() => productImageRef.current?.click()}
+                                        >
+                                            {editingProduct.image ? (
+                                                <div className="flex flex-col items-center gap-3">
+                                                    <img
+                                                        src={editingProduct.image}
+                                                        alt="预览"
+                                                        className="h-40 rounded-lg object-contain bg-gray-50 dark:bg-gray-900 shadow-md"
+                                                    />
+                                                    <span className="text-sm text-gray-500 dark:text-gray-400">点击更换图片</span>
+                                                </div>
+                                            ) : (
+                                                <div className="flex flex-col items-center gap-3 py-4">
+                                                    {productImageUploading ? (
+                                                        <RefreshCw className="w-10 h-10 text-primary animate-spin" />
+                                                    ) : (
+                                                        <Upload className="w-10 h-10 text-gray-400" />
+                                                    )}
+                                                    <div>
+                                                        <p className="text-sm font-medium text-gray-700 dark:text-gray-300">点击上传图片</p>
+                                                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">支持 JPG, PNG, WebP</p>
+                                                    </div>
+                                                </div>
+                                            )}
+                                            <input
+                                                type="file"
+                                                accept="image/*"
+                                                hidden
+                                                ref={productImageRef}
+                                                onChange={e => {
+                                                    const file = e.target.files?.[0];
+                                                    if (file) handleProductImageUpload(file);
+                                                    e.target.value = '';
+                                                }}
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div className="flex justify-end gap-3 pt-4 border-t border-gray-200 dark:border-dark-border">
+                                        <button
+                                            onClick={() => setIsEditingProduct(false)}
+                                            className="px-4 py-2 border border-gray-300 dark:border-dark-border text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-dark-bg transition-colors"
+                                        >
+                                            取消
+                                        </button>
+                                        <button
+                                            onClick={handleSaveProduct}
+                                            disabled={saveStatus === 'saving'}
+                                            className="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary/90 text-white rounded-lg transition-colors font-medium disabled:opacity-50"
+                                        >
+                                            {saveStatus === 'saving' ? (
+                                                <>
+                                                    <RefreshCw className="w-4 h-4 animate-spin" />
+                                                    保存中...
+                                                </>
+                                            ) : saveStatus === 'success' ? (
+                                                <>
+                                                    <CheckCircle className="w-4 h-4" />
+                                                    已保存
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <Save className="w-4 h-4" />
+                                                    保存商品
+                                                </>
+                                            )}
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="bg-white dark:bg-dark-card rounded-xl border border-gray-200 dark:border-dark-border shadow-sm overflow-hidden">
+                                {loading ? (
+                                    <div className="text-center py-12 text-gray-500">加载中...</div>
+                                ) : products.length === 0 ? (
+                                    <div className="text-center py-12 text-gray-500">暂无商品</div>
+                                ) : (
+                                    <div className="overflow-x-auto">
+                                        <table className="w-full">
+                                            <thead className="bg-gray-50 dark:bg-dark-bg border-b border-gray-200 dark:border-dark-border">
+                                                <tr>
+                                                    <th className="py-3 px-4 text-left text-sm font-semibold text-gray-700 dark:text-gray-300">商品</th>
+                                                    <th className="py-3 px-4 text-left text-sm font-semibold text-gray-700 dark:text-gray-300">价格</th>
+                                                    <th className="py-3 px-4 text-left text-sm font-semibold text-gray-700 dark:text-gray-300">描述</th>
+                                                    <th className="py-3 px-4 text-left text-sm font-semibold text-gray-700 dark:text-gray-300">状态</th>
+                                                    <th className="py-3 px-4 text-right text-sm font-semibold text-gray-700 dark:text-gray-300">操作</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {products.map(product => (
+                                                    <tr key={product.id} className={`border-b border-gray-200 dark:border-dark-border hover:bg-gray-50 dark:hover:bg-dark-bg/50 transition-colors ${!product.enabled ? 'opacity-60 bg-gray-50 dark:bg-dark-bg/30' : ''}`}>
+                                                        <td className="py-4 px-4">
+                                                            <div className="flex items-center gap-3">
+                                                                <div className="w-12 h-12 rounded-lg bg-gray-100 dark:bg-gray-800 overflow-hidden flex-shrink-0">
+                                                                    {product.image ? (
+                                                                        <img src={product.image} alt={product.name} className="w-full h-full object-cover" />
+                                                                    ) : (
+                                                                        <div className="w-full h-full flex items-center justify-center text-gray-400">
+                                                                            <Package className="w-6 h-6" />
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                                <div className="font-medium text-gray-900 dark:text-white">{product.name}</div>
+                                                            </div>
+                                                        </td>
+                                                        <td className="py-4 px-4 text-gray-700 dark:text-gray-300 font-medium">
+                                                            ¥{product.price}
+                                                        </td>
+                                                        <td className="py-4 px-4 text-gray-600 dark:text-gray-400 max-w-xs truncate">
+                                                            {product.description}
+                                                        </td>
+                                                        <td className="py-4 px-4">
+                                                            {product.enabled ? (
+                                                                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">
+                                                                    已上架
+                                                                </span>
+                                                            ) : (
+                                                                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300">
+                                                                    已下架
+                                                                </span>
+                                                            )}
+                                                        </td>
+                                                        <td className="py-4 px-4">
+                                                            <div className="flex items-center justify-end gap-2">
+                                                                <button
+                                                                    onClick={() => {
+                                                                        setEditingProduct(product);
+                                                                        setIsEditingProduct(true);
+                                                                    }}
+                                                                    className="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-dark-bg rounded-lg transition-colors"
+                                                                >
+                                                                    <Edit className="w-4 h-4" />
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => handleDeleteProduct(product.id)}
+                                                                    className="p-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                                                                >
+                                                                    <Trash2 className="w-4 h-4" />
+                                                                </button>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                {activeTab === 'models' && (
+                    <div className="space-y-6">
+                        <div className="bg-white dark:bg-dark-card rounded-xl border border-gray-200 dark:border-dark-border p-6 shadow-sm">
+                            <div className="flex items-center justify-between mb-6">
+                                <div>
+                                    <h2 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                                        <Server className="w-5 h-5 text-primary" />
+                                        模型管理
+                                    </h2>
+                                    <p className="text-sm text-gray-500 mt-1">拖动模型调整排序，修改额度消耗或上下架状态。</p>
+                                </div>
+                                <button
+                                    onClick={() => handleSaveModels()}
+                                    disabled={saveStatus === 'saving'}
+                                    className="px-4 py-2 bg-primary hover:bg-primary/90 text-white rounded-lg flex items-center gap-2 transition-all shadow-md shadow-primary/20 disabled:opacity-50"
+                                >
+                                    {saveStatus === 'saving' ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                                    保存更改
+                                </button>
+                            </div>
+
+                            <Reorder.Group
+                                axis="y"
+                                values={adminModels}
+                                onReorder={setAdminModels}
+                                className="space-y-3"
+                            >
+                                {adminModels.map((model) => (
+                                    <Reorder.Item
+                                        key={model.id}
+                                        value={model}
+                                        className="group bg-gray-50 dark:bg-dark-bg border border-gray-200 dark:border-dark-border rounded-xl p-4 flex flex-col sm:flex-row sm:items-center gap-4 hover:border-primary/30 transition-colors"
+                                    >
+                                        <div className="flex items-center gap-3 flex-1">
+                                            <div className="cursor-grab active:cursor-grabbing p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                                                <GripVertical className="w-5 h-5" />
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <input
+                                                    type="text"
+                                                    value={model.name}
+                                                    onChange={(e) => handleUpdateModelField(model.id, 'name', e.target.value)}
+                                                    className="w-full bg-transparent font-bold text-gray-900 dark:text-white border-none focus:ring-0 p-0 text-lg outline-none"
+                                                />
+                                                <div className="text-xs text-gray-500 flex items-center gap-2 mt-1">
+                                                    <span className="font-mono bg-gray-200 dark:bg-gray-800 px-1.5 py-0.5 rounded text-[10px]">{model.id}</span>
+                                                    <span>|</span>
+                                                    <span>累计调用: <span className="text-primary font-bold">{model.usage || 0}</span></span>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div className="flex items-center gap-6 justify-between sm:justify-end">
+                                            <div className="flex items-center gap-2 bg-white dark:bg-dark-card border border-gray-200 dark:border-dark-border rounded-lg px-3 py-1.5">
+                                                <Coins className="w-4 h-4 text-amber-500" />
+                                                <span className="text-xs text-gray-500 whitespace-nowrap">额度:</span>
+                                                <input
+                                                    type="number"
+                                                    value={model.creditCost}
+                                                    onChange={(e) => handleUpdateModelField(model.id, 'creditCost', parseInt(e.target.value) || 0)}
+                                                    className="w-12 bg-transparent text-sm font-bold text-gray-900 dark:text-white border-none focus:ring-0 p-0 text-center outline-none"
+                                                />
+                                            </div>
+
+                                            <button
+                                                onClick={() => handleUpdateModelField(model.id, 'enabled', !model.enabled)}
+                                                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${model.enabled
+                                                    ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 hover:bg-green-200'
+                                                    : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 hover:bg-red-200'
+                                                    }`}
+                                            >
+                                                {model.enabled ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+                                                {model.enabled ? '已上架' : '已下架'}
+                                            </button>
+                                        </div>
+                                    </Reorder.Item>
+                                ))}
+                            </Reorder.Group>
+
+                            {adminModels.length === 0 && (
+                                <div className="text-center py-12 text-gray-400">
+                                    <RefreshCw className="w-8 h-8 mx-auto mb-3 animate-spin opacity-20" />
+                                    正在加载模型配置...
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                )}
+
+                {activeTab === 'keys' && (
+                    <div className="space-y-6">
+                        <div className="bg-white dark:bg-dark-card rounded-xl border border-gray-200 dark:border-dark-border p-6 shadow-sm">
+                            <h2 className="text-lg font-bold mb-4 text-gray-900 dark:text-white flex items-center gap-2">
+                                <Key className="w-5 h-5" />
+                                密钥管理
+                            </h2>
+                            <div className="flex gap-4 items-end mb-6">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                        生成数量
+                                    </label>
+                                    <input
+                                        type="number"
+                                        min="1"
+                                        max="50"
+                                        value={keyGenerations}
+                                        onChange={(e) => setKeyGenerations(parseInt(e.target.value) || 1)}
+                                        className="w-32 px-3 py-2 border border-gray-300 dark:border-dark-border rounded-lg bg-white dark:bg-dark-bg text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
+                                    />
+                                </div>
+                                <button
+                                    onClick={handleGenerateKeys}
+                                    className="px-4 py-2 bg-primary hover:bg-primary/90 text-white rounded-lg flex items-center gap-2 transition-colors"
+                                >
+                                    <Plus className="w-4 h-4" />
+                                    生成密钥
+                                </button>
+                            </div>
+
+                            <div className="space-y-4">
+                                <div>
+                                    <h3 className="font-semibold text-gray-700 dark:text-gray-300 mb-2">未使用密钥 ({keysData.unused.length})</h3>
+                                    <div className="max-h-60 overflow-y-auto bg-gray-50 dark:bg-dark-bg/50 rounded-lg p-4 border border-gray-200 dark:border-dark-border">
+                                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+                                            {keysData.unused.map(k => (
+                                                <div key={k} className="flex items-center justify-between bg-white dark:bg-dark-card p-2 rounded border border-gray-200 dark:border-dark-border text-xs font-mono">
+                                                    <span className="text-gray-600 dark:text-gray-400 select-all">{k}</span>
+                                                    <button
+                                                        onClick={() => {
+                                                            navigator.clipboard.writeText(k);
+                                                            alert('已复制');
+                                                        }}
+                                                        className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded text-gray-400 hover:text-primary transition-colors"
+                                                        title="复制"
+                                                    >
+                                                        <Copy className="w-3 h-3" />
+                                                    </button>
+                                                </div>
+                                            ))}
+                                            {keysData.unused.length === 0 && <div className="text-center text-gray-400 py-4 text-sm col-span-full">暂无可用密钥</div>}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <h3 className="font-semibold text-gray-700 dark:text-gray-300 mb-2">已激活密钥详情 ({Object.keys(keysData.activated).length})</h3>
+                                    <div className="max-h-60 overflow-y-auto bg-gray-50 dark:bg-dark-bg/50 rounded-lg p-4 border border-gray-200 dark:border-dark-border">
+                                        <table className="w-full text-xs text-left">
+                                            <thead>
+                                                <tr className="text-gray-500 dark:text-gray-400 border-b border-gray-200 dark:border-dark-border">
+                                                    <th className="pb-2 font-medium">密钥</th>
+                                                    <th className="pb-2 font-medium">剩余额度</th>
+                                                    <th className="pb-2 font-medium">激活时间</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {Object.entries(keysData.activated).map(([k, v]) => (
+                                                    <tr key={k} className="border-b border-gray-100 dark:border-dark-border/50 last:border-0 hover:bg-black/5 dark:hover:bg-white/5 transition-colors">
+                                                        <td className="py-2 text-gray-600 dark:text-gray-400 font-mono select-all">{k}</td>
+                                                        <td className="py-2 text-primary font-bold">{v.credits}</td>
+                                                        <td className="py-2 text-gray-500">{new Date(v.activatedAt).toLocaleString()}</td>
+                                                    </tr>
+                                                ))}
+                                                {Object.keys(keysData.activated).length === 0 && (
+                                                    <tr>
+                                                        <td colSpan={3} className="py-8 text-center text-gray-400">暂无已激活密钥记录</td>
+                                                    </tr>
+                                                )}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 )}
             </div>
