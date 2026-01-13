@@ -7,6 +7,22 @@ export default function Changelog() {
         <motion.h2 initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="text-2xl font-bold mb-4 text-gray-900 dark:text-white">更新公告</motion.h2>
 
         <div className="space-y-6">
+          {/* 2026-01-13 更新 */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.05 }}
+            className="rounded-lg border border-green-200 dark:border-green-900 bg-green-50 dark:bg-green-950/30 p-5 pb-8 relative"
+          >
+            <div className="text-gray-700 dark:text-green-100 pr-4 space-y-2">
+              <p>✨ UI/UX 全面焕新：聊天输入框、按钮及交互体验大幅升级</p>
+              <p>📝 新增消息编辑：支持对已发送消息进行修改并重新生成回复</p>
+              <p>🛠 后台管理升级：支持模型拖拽排序、小数额度设置及数据持久化</p>
+              <p>🚀 体验优化：修复 AI 回复格式问题，提升系统稳定性</p>
+            </div>
+            <div className="absolute right-4 bottom-3 text-xs text-green-600 dark:text-green-400">2026年01月13日</div>
+          </motion.div>
+
           {/* 2025-12-14 更新 */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
