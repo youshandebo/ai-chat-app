@@ -15,10 +15,11 @@ export default function Changelog() {
             className="rounded-lg border border-green-200 dark:border-green-900 bg-green-50 dark:bg-green-950/30 p-5 pb-8 relative"
           >
             <div className="text-gray-700 dark:text-green-100 pr-4 space-y-2">
-              <p>✨ UI/UX 全面焕新：聊天输入框、按钮及交互体验大幅升级</p>
-              <p>📝 新增消息编辑：支持对已发送消息进行修改并重新生成回复</p>
+              <p>🛍️ 商城与密钥系统：正式上线商城系统，支持通过密钥获取额外额度</p>
+              <p>⛔️ 额度限制机制：每位用户每日享有 25 次免费额度，防止滥用</p>
+              <p>🤖 模型升级与计费：添加全新高级模型，支持差异化扣费（高级模型消耗更多次数）</p>
+              <p>✨ UI/UX 全面焕新：聊天输入框、按钮及交互体验大幅升级，支持消息二次编辑</p>
               <p>🛠 后台管理升级：支持模型拖拽排序、小数额度设置及数据持久化</p>
-              <p>🚀 体验优化：修复 AI 回复格式问题，提升系统稳定性</p>
             </div>
             <div className="absolute right-4 bottom-3 text-xs text-green-600 dark:text-green-400">2026年01月13日</div>
           </motion.div>
