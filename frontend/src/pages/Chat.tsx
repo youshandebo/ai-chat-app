@@ -11,11 +11,12 @@ import InputBox from "../components/InputBox";
 import ModelSelector from "../components/ModelSelector";
 
 export default function Chat() {
-  const { chats, currentChatId, createChat, addMessage, updateMessage, setCurrentChat } = useChatStore();
+  const { chats, currentChatId, createChat, addMessage, updateMessage, setCurrentChat, deleteMessagesAfter } = useChatStore();
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string>("");
   const [showAbuseWarning, setShowAbuseWarning] = useState(false);
   const [showActivation, setShowActivation] = useState(false);
+  const [editingMessage, setEditingMessage] = useState<{ id: string; content: string } | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const current = useMemo(() => chats.find((c) => c.id === currentChatId), [chats, currentChatId]);
 
@@ -42,158 +43,177 @@ export default function Chat() {
           )}
         </div>
         <motion.div className="flex-1 overflow-auto bg-gray-50 dark:bg-dark-bg" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-          <MessageList />
+          <MessageList onEditMessage={(msgId, content) => {
+            if (!current || isGenerating) return;
+            // Remove the message being edited and any messages after it
+            deleteMessagesAfter(current.id, msgId);
+            setEditingMessage({ id: msgId, content });
+          }} />
         </motion.div>
         <div className="border-t border-gray-200 dark:border-dark-border p-4 bg-white dark:bg-dark-card">
-          <InputBox onSend={async (content) => {
-            if (!current) {
-              setError("尚未选择会话，已创建新会话，请再次发送");
-              if (chats.length === 0) createChat("gemini-2.5-flash"); else setCurrentChat(chats[0].id);
-              return;
-            }
-            const chatId = current.id;
-            const freshCurrent = useChatStore.getState().chats.find(c => c.id === chatId);
-            const modelId = freshCurrent?.modelId || "gemini-2.5-flash"; // Fallback safety
-            const userMsgId = `msg_${Date.now()}`;
-            addMessage(chatId, { id: userMsgId, role: "user", content, timestamp: Date.now(), modelId });
-            const asstId = `msg_${Date.now()}_asst`;
-            addMessage(chatId, { id: asstId, role: "assistant", content: "AI正在思考🤔", timestamp: Date.now(), modelId });
-            const controller = new AbortController();
-            abortRef.current = controller;
-            setIsGenerating(true);
-            let acc = ""; // Move acc here to be accessible in catch block
-            try {
-              // Refresh activation key balance before sending message
-              const storedKeys = getStoredKeys();
-              const lastKey = storedKeys.pop();
-              if (lastKey) {
-                try {
-                  // @ts-ignore
-                  const apiBase = import.meta.env.VITE_BACKEND_BASE || '';
-                  const balanceRes = await fetch(`${apiBase}/api/keys/balance`, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ key: lastKey })
-                  });
-                  if (!balanceRes.ok) {
-                    // If balance check fails, the key might be invalid
-                    console.warn(`Invalid activation key: ${lastKey}`);
-                  }
-                } catch (e) {
-                  console.warn("Failed to check balance:", e);
-                }
+          <InputBox
+            editingMessage={editingMessage?.content}
+            onCancelEdit={() => setEditingMessage(null)}
+            onSend={async (content) => {
+              // Clear editing state when sending
+              setEditingMessage(null);
+              if (!current) {
+                setError("尚未选择会话，已创建新会话，请再次发送");
+                if (chats.length === 0) createChat("gemini-2.5-flash"); else setCurrentChat(chats[0].id);
+                return;
               }
-              
-              const fingerprint = await getFingerprint();
-              const webSearchEnabled = localStorage.getItem('webSearchEnabled') === 'true';
-              const payload = {
-                messages: freshCurrent?.messages.concat([{ id: userMsgId, role: "user", content, timestamp: Date.now(), modelId }]) || [],
-                stream: true,
-                webSearch: webSearchEnabled
-              } as any;
-              console.log("send payload", { modelId, payload, webSearch: webSearchEnabled });
-
-              // @ts-ignore
-              const apiBase = import.meta.env.VITE_BACKEND_BASE || '';
-              const apiUrl = `${apiBase}/api/chat/${modelId}`;
-              const res = await fetch(apiUrl, {
-                method: "POST",
-                mode: "cors",
-                headers: {
-                  "Content-Type": "application/json",
-                  "Accept": "text/event-stream",
-                  "X-Device-Fingerprint": fingerprint,
-                  "X-Activation-Key": lastKey || ""
-                },
-                body: JSON.stringify(payload),
-                signal: controller.signal,
-              });
-
-              if (res.headers.get("X-Usage-Warning") === "true") {
-                if (!sessionStorage.getItem("abuse_warning_shown")) {
-                  setShowAbuseWarning(true);
-                }
-              }
-
-              if (!res.ok) {
-                let errorMessage = `HTTP ${res.status}`;
-                try {
-                  const errorJson = await res.json();
-                  if (errorJson.error) errorMessage = errorJson.error;
-                } catch {
-                  // If JSON parse fails, try text
+              const chatId = current.id;
+              const freshCurrent = useChatStore.getState().chats.find(c => c.id === chatId);
+              const modelId = freshCurrent?.modelId || "gemini-2.5-flash"; // Fallback safety
+              const userMsgId = `msg_${Date.now()}`;
+              addMessage(chatId, { id: userMsgId, role: "user", content, timestamp: Date.now(), modelId });
+              const asstId = `msg_${Date.now()}_asst`;
+              addMessage(chatId, { id: asstId, role: "assistant", content: "AI正在思考🤔", timestamp: Date.now(), modelId });
+              const controller = new AbortController();
+              abortRef.current = controller;
+              setIsGenerating(true);
+              let acc = ""; // Move acc here to be accessible in catch block
+              try {
+                // Refresh activation key balance before sending message
+                const storedKeys = getStoredKeys();
+                const lastKey = storedKeys.pop();
+                if (lastKey) {
                   try {
-                    const text = await res.text();
-                    if (text) errorMessage = `HTTP ${res.status}: ${text.slice(0, 100)}`;
-                  } catch { }
+                    // @ts-ignore
+                    const apiBase = import.meta.env.VITE_BACKEND_BASE || '';
+                    const balanceRes = await fetch(`${apiBase}/api/keys/balance`, {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ key: lastKey })
+                    });
+                    if (!balanceRes.ok) {
+                      // If balance check fails, the key might be invalid
+                      console.warn(`Invalid activation key: ${lastKey}`);
+                    }
+                  } catch (e) {
+                    console.warn("Failed to check balance:", e);
+                  }
                 }
-                throw new Error(errorMessage);
-              }
-              const ct = res.headers.get("content-type") || "";
-              if (res.body && ct.includes("text/event-stream")) {
-                const reader = res.body.getReader();
-                const decoder = new TextDecoder();
-                let buf = "";
-                let hasReceivedContent = false;
-                for (; ;) {
-                  const { value, done } = await reader.read();
-                  if (done) break;
-                  buf += decoder.decode(value, { stream: true });
-                  const lines = buf.split("\n");
-                  buf = lines.pop() || "";
-                  for (const line of lines) {
-                    if (line.startsWith("data: ")) {
-                      const data = line.slice(6);
-                      if (data === "[DONE]") {
-                        setIsGenerating(false);
-                      } else {
-                        try {
-                          const parsed = JSON.parse(data);
-                          const chunk = parsed.content || parsed.choices?.[0]?.delta?.content || "";
-                          if (chunk) {
-                            if (!hasReceivedContent) {
-                              acc = chunk;
-                              hasReceivedContent = true;
-                            } else {
-                              acc += chunk;
+
+                const fingerprint = await getFingerprint();
+                const webSearchEnabled = localStorage.getItem('webSearchEnabled') === 'true';
+                // Filter out error messages from context to prevent AI confusion
+                const cleanMessages = (freshCurrent?.messages || []).filter(m => {
+                  const c = String(m.content || '');
+                  if (m.role === 'assistant') {
+                    // Exclude error responses and thinking indicators
+                    if (c.includes('Internal Server Error') || c.startsWith('HTTP ') || c === 'AI正在思考🤔') return false;
+                  }
+                  return true;
+                });
+                const payload = {
+                  messages: cleanMessages.concat([{ id: userMsgId, role: "user", content, timestamp: Date.now(), modelId }]),
+                  stream: true,
+                  webSearch: webSearchEnabled
+                } as any;
+                console.log("send payload", { modelId, payload, webSearch: webSearchEnabled });
+
+                // @ts-ignore
+                const apiBase = import.meta.env.VITE_BACKEND_BASE || '';
+                const apiUrl = `${apiBase}/api/chat/${modelId}`;
+                const res = await fetch(apiUrl, {
+                  method: "POST",
+                  mode: "cors",
+                  headers: {
+                    "Content-Type": "application/json",
+                    "Accept": "text/event-stream",
+                    "X-Device-Fingerprint": fingerprint,
+                    "X-Activation-Key": lastKey || ""
+                  },
+                  body: JSON.stringify(payload),
+                  signal: controller.signal,
+                });
+
+                if (res.headers.get("X-Usage-Warning") === "true") {
+                  if (!sessionStorage.getItem("abuse_warning_shown")) {
+                    setShowAbuseWarning(true);
+                  }
+                }
+
+                if (!res.ok) {
+                  let errorMessage = `HTTP ${res.status}`;
+                  try {
+                    const errorJson = await res.json();
+                    if (errorJson.error) errorMessage = errorJson.error;
+                  } catch {
+                    // If JSON parse fails, try text
+                    try {
+                      const text = await res.text();
+                      if (text) errorMessage = `HTTP ${res.status}: ${text.slice(0, 100)}`;
+                    } catch { }
+                  }
+                  throw new Error(errorMessage);
+                }
+                const ct = res.headers.get("content-type") || "";
+                if (res.body && ct.includes("text/event-stream")) {
+                  const reader = res.body.getReader();
+                  const decoder = new TextDecoder();
+                  let buf = "";
+                  let hasReceivedContent = false;
+                  for (; ;) {
+                    const { value, done } = await reader.read();
+                    if (done) break;
+                    buf += decoder.decode(value, { stream: true });
+                    const lines = buf.split("\n");
+                    buf = lines.pop() || "";
+                    for (const line of lines) {
+                      if (line.startsWith("data: ")) {
+                        const data = line.slice(6);
+                        if (data === "[DONE]") {
+                          setIsGenerating(false);
+                        } else {
+                          try {
+                            const parsed = JSON.parse(data);
+                            const chunk = parsed.content || parsed.choices?.[0]?.delta?.content || "";
+                            if (chunk) {
+                              if (!hasReceivedContent) {
+                                acc = chunk;
+                                hasReceivedContent = true;
+                              } else {
+                                acc += chunk;
+                              }
+                              updateMessage(chatId, asstId, acc);
                             }
-                            updateMessage(chatId, asstId, acc);
-                          }
-                        } catch { }
+                          } catch { }
+                        }
                       }
                     }
                   }
+                } else {
+                  const ct2 = res.headers.get("content-type") || "";
+                  const text = await res.text();
+                  if (!ct2.includes("application/json")) {
+                    setError("接口返回了HTML/非JSON，请检查请求地址与代理配置");
+                    updateMessage(chatId, asstId, "接口返回了HTML/非JSON，请检查请求地址与代理配置");
+                    setIsGenerating(false);
+                    return;
+                  }
+                  try {
+                    const parsed = JSON.parse(text);
+                    const content = parsed.content || parsed.choices?.[0]?.message?.content || text;
+                    updateMessage(chatId, asstId, content);
+                  } catch {
+                    setError("JSON解析失败，请检查接口响应");
+                  }
+                  setIsGenerating(false);
                 }
-              } else {
-                const ct2 = res.headers.get("content-type") || "";
-                const text = await res.text();
-                if (!ct2.includes("application/json")) {
-                  setError("接口返回了HTML/非JSON，请检查请求地址与代理配置");
-                  updateMessage(chatId, asstId, "接口返回了HTML/非JSON，请检查请求地址与代理配置");
+              } catch (e: any) {
+                if (e.name === 'AbortError' || e.message?.includes('aborted')) {
+                  updateMessage(chatId, asstId, acc + "\n\n[用户手动停止输出]");
                   setIsGenerating(false);
                   return;
                 }
-                try {
-                  const parsed = JSON.parse(text);
-                  const content = parsed.content || parsed.choices?.[0]?.message?.content || text;
-                  updateMessage(chatId, asstId, content);
-                } catch {
-                  setError("JSON解析失败，请检查接口响应");
-                }
+                console.error("chat error", e);
+                setError(e?.message || String(e));
+                updateMessage(chatId, asstId, e?.message || String(e));
                 setIsGenerating(false);
               }
-            } catch (e: any) {
-              if (e.name === 'AbortError' || e.message?.includes('aborted')) {
-                updateMessage(chatId, asstId, acc + "\n\n[用户手动停止输出]");
-                setIsGenerating(false);
-                return;
-              }
-              console.error("chat error", e);
-              setError(e?.message || String(e));
-              updateMessage(chatId, asstId, e?.message || String(e));
-              setIsGenerating(false);
-            }
-          }} />
+            }} />
         </div>
       </div>
       <AbuseWarningModal

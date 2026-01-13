@@ -32,6 +32,8 @@ interface ChatState {
   setTheme: (theme: "light" | "dark" | "auto" | "new-year") => void;
   renameChat: (chatId: string, title: string) => void;
   deleteChat: (chatId: string) => void;
+  deleteMessage: (chatId: string, messageId: string) => void;
+  deleteMessagesAfter: (chatId: string, messageId: string) => void;
 }
 
 export const useChatStore = create<ChatState>()(
@@ -99,6 +101,25 @@ export const useChatStore = create<ChatState>()(
           const nextCurrent = state.currentChatId === chatId ? filtered[0]?.id || null : state.currentChatId;
           return { chats: filtered, currentChatId: nextCurrent };
         });
+      },
+      deleteMessage: (chatId, messageId) => {
+        set((state) => ({
+          chats: state.chats.map((c) =>
+            c.id === chatId
+              ? { ...c, messages: c.messages.filter((m) => m.id !== messageId), updatedAt: Date.now() }
+              : c
+          ),
+        }));
+      },
+      deleteMessagesAfter: (chatId, messageId) => {
+        set((state) => ({
+          chats: state.chats.map((c) => {
+            if (c.id !== chatId) return c;
+            const idx = c.messages.findIndex((m) => m.id === messageId);
+            if (idx === -1) return c;
+            return { ...c, messages: c.messages.slice(0, idx), updatedAt: Date.now() };
+          }),
+        }));
       },
     }),
     {

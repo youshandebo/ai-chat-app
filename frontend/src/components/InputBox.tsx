@@ -1,13 +1,28 @@
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 
 const ALLOWED_TEXT_TYPES = ['.txt', '.md', '.markdown', '.json', '.csv'];
 const ALLOWED_IMAGE_TYPES = ['.jpg', '.jpeg', '.png'];
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 
-export default function InputBox({ onSend }: { onSend: (content: string) => void }) {
+interface InputBoxProps {
+  onSend: (content: string) => void;
+  editingMessage?: string | null;
+  onCancelEdit?: () => void;
+}
+
+export default function InputBox({ onSend, editingMessage, onCancelEdit }: InputBoxProps) {
   const [val, setVal] = useState("");
   const [pendingFile, setPendingFile] = useState<{ name: string; content: string } | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // When editing message comes in, populate the textarea
+  useEffect(() => {
+    if (editingMessage) {
+      setVal(editingMessage);
+      textareaRef.current?.focus();
+    }
+  }, [editingMessage]);
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
@@ -73,63 +88,90 @@ export default function InputBox({ onSend }: { onSend: (content: string) => void
     setVal("");
   };
 
+  const handleCancelEdit = () => {
+    setVal("");
+    onCancelEdit?.();
+  };
+
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex flex-col gap-3">
+      {/* Editing indicator */}
+      {editingMessage && (
+        <div className="flex items-center gap-2 px-3 py-2 bg-amber-50 dark:bg-amber-900/30 rounded-xl text-sm border border-amber-200 dark:border-amber-700">
+          <span className="text-amber-600 dark:text-amber-300">✏️ 正在编辑消息</span>
+          <button
+            onClick={handleCancelEdit}
+            className="ml-auto text-amber-600 hover:text-amber-800 dark:text-amber-400 dark:hover:text-amber-200 text-xs font-medium"
+          >
+            取消编辑
+          </button>
+        </div>
+      )}
+
       {/* Pending file indicator */}
       {pendingFile && (
-        <div className="flex items-center gap-2 px-3 py-2 bg-blue-50 dark:bg-blue-900/30 rounded-lg text-sm">
-          <span className="text-blue-600 dark:text-blue-300">
+        <div className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/30 dark:to-indigo-900/30 rounded-xl text-sm border border-blue-200 dark:border-blue-700/50">
+          <span className="text-blue-600 dark:text-blue-300 font-medium">
             {pendingFile.content.startsWith('data:image') ? '🖼️' : '📄'} {pendingFile.name}
           </span>
           <button
             onClick={clearPendingFile}
-            className="ml-auto text-red-500 hover:text-red-700 text-xs"
+            className="ml-auto px-2 py-1 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 text-xs font-medium hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-colors"
           >
             ✕ 取消
           </button>
         </div>
       )}
 
-      <div className="flex items-end gap-2">
-        <textarea
-          className="flex-1 border border-gray-200 dark:border-dark-border rounded-lg p-3 min-h-[90px] sm:min-h-[72px] bg-white dark:bg-dark-card text-gray-900 dark:text-dark-text placeholder-gray-500 dark:placeholder-dark-text/60 shadow-sm resize-none"
-          placeholder={pendingFile ? "输入你的问题..." : "输入消息..."}
-          value={val}
-          onChange={(e) => setVal(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey) {
-              e.preventDefault();
-              handleSend();
-            }
-          }}
-        />
-        <input
-          ref={fileRef}
-          type="file"
-          accept=".txt,.md,.markdown,.json,.csv,.jpg,.jpeg,.png"
-          className="hidden"
-          onChange={handleFileSelect}
-        />
-        <div className="flex flex-col sm:flex-row items-center gap-2">
+      {/* Main input area */}
+      <div className="flex items-end gap-3">
+        <div className="flex-1 relative">
+          <textarea
+            ref={textareaRef}
+            className="w-full border-2 border-gray-200 dark:border-dark-border rounded-2xl px-4 py-3 min-h-[100px] sm:min-h-[80px] bg-white dark:bg-dark-card text-gray-900 dark:text-dark-text placeholder-gray-400 dark:placeholder-gray-500 shadow-sm resize-none transition-all duration-200 focus:border-primary dark:focus:border-primary focus:ring-2 focus:ring-primary/20 focus:outline-none"
+            placeholder={editingMessage ? "编辑你的消息..." : pendingFile ? "输入你的问题..." : "输入消息，Enter 发送，Shift+Enter 换行..."}
+            value={val}
+            onChange={(e) => setVal(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                handleSend();
+              }
+            }}
+          />
+        </div>
+
+        {/* Action buttons */}
+        <div className="flex flex-col gap-2">
+          <input
+            ref={fileRef}
+            type="file"
+            accept=".txt,.md,.markdown,.json,.csv,.jpg,.jpeg,.png"
+            className="hidden"
+            onChange={handleFileSelect}
+          />
           <button
-            className="w-full sm:w-auto px-3 py-2 rounded border border-gray-200 dark:border-dark-border bg-white dark:bg-dark-card text-gray-900 dark:text-dark-text hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-sm"
+            className="group flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl border-2 border-gray-200 dark:border-dark-border bg-white dark:bg-dark-card text-gray-600 dark:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-200 text-sm font-medium"
             onClick={() => fileRef.current?.click()}
-            title="上传文档或图片"
+            title="上传文档或图片 (最大5MB)"
           >
-            📎 上传
+            <span className="text-lg">📎</span>
+            <span className="hidden sm:inline">上传</span>
           </button>
           <button
-            className="w-full sm:w-auto px-4 py-2 rounded bg-primary text-white hover:bg-indigo-400 dark:bg-primary/90 dark:hover:bg-primary transition-transform hover:scale-105 shadow text-sm"
+            className="group flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-gradient-to-r from-primary to-indigo-500 text-white hover:from-indigo-500 hover:to-primary transition-all duration-300 shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30 hover:scale-[1.02] active:scale-[0.98] text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
             onClick={handleSend}
+            disabled={!val.trim() && !pendingFile}
           >
-            ▶ 发送
+            <span className="text-lg">▶</span>
+            <span className="hidden sm:inline">{editingMessage ? '重发' : '发送'}</span>
           </button>
         </div>
       </div>
 
-      {/* File type hint for mobile */}
-      <p className="text-xs text-gray-400 dark:text-gray-500 sm:hidden">
-        支持: txt, md, json, csv, jpg, png (最大5MB)
+      {/* File type hint */}
+      <p className="text-xs text-gray-400 dark:text-gray-500 text-center sm:text-left">
+        💡 支持: txt, md, json, csv, jpg, png (最大5MB) · Enter 发送 · Shift+Enter 换行
       </p>
     </div>
   );

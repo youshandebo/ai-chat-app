@@ -6,7 +6,11 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import Toast from "./Toast";
 
-export default function MessageList() {
+interface MessageListProps {
+  onEditMessage?: (messageId: string, content: string) => void;
+}
+
+export default function MessageList({ onEditMessage }: MessageListProps) {
   const { chats, currentChatId } = useChatStore();
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const [votes, setVotes] = useState<Record<string, 'up' | 'down' | null>>({});
@@ -62,7 +66,7 @@ export default function MessageList() {
 
   return (
     <div className="py-4 px-6 bg-white dark:bg-dark-card min-h-full">
-      {messages.map((m) => {
+      {messages.map((m, idx) => {
         const c = String(m.content || "");
         if (m.role === "assistant" && c.trim() === "") return null;
 
@@ -89,7 +93,7 @@ export default function MessageList() {
                   ? "bg-primary dark:bg-primary/90 text-white"
                   : "bg-gray-100 dark:bg-dark-card dark:text-dark-text border border-gray-200 dark:border-dark-border"
                   }`}
-                style={{ wordBreak: 'break-word', overflowWrap: 'break-word', whiteSpace: 'pre-wrap' }}
+                style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}
               >
                 {(() => {
                   if (m.role === "assistant" && (c.startsWith("<!DOCTYPE") || c.includes("<html"))) {
@@ -140,6 +144,15 @@ export default function MessageList() {
 
               <div className={`mt-1 flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400 ${m.role === "user" ? "justify-end w-full" : "justify-start w-full"}`}>
                 <span>{new Date(m.timestamp || Date.now()).toLocaleString()}</span>
+                {m.role === "user" && idx === messages.length - 1 && onEditMessage && (
+                  <button
+                    className="px-2 py-0.5 rounded border border-gray-200 dark:border-dark-border bg-white dark:bg-dark-card hover:bg-amber-50 dark:hover:bg-amber-900/30 hover:border-amber-300 dark:hover:border-amber-700 transition-colors"
+                    onClick={() => onEditMessage(m.id, c)}
+                    title="编辑并重新发送"
+                  >
+                    ✏️ 编辑
+                  </button>
+                )}
                 {m.role === "assistant" && (
                   <>
                     <button
