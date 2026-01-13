@@ -1869,7 +1869,7 @@ const Admin = () => {
                                         className="group bg-gray-50 dark:bg-dark-bg border border-gray-200 dark:border-dark-border rounded-xl p-4 flex flex-col sm:flex-row sm:items-center gap-4 hover:border-primary/30 transition-colors"
                                     >
                                         <div className="flex items-center gap-3 flex-1">
-                                            <div className="cursor-grab active:cursor-grabbing p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                                            <div className="cursor-grab active:cursor-grabbing p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700/50 rounded-lg transition-colors">
                                                 <GripVertical className="w-5 h-5" />
                                             </div>
                                             <div className="flex-1 min-w-0">
@@ -1893,9 +1893,10 @@ const Admin = () => {
                                                 <span className="text-xs text-gray-500 whitespace-nowrap">额度:</span>
                                                 <input
                                                     type="number"
+                                                    step="0.001"
                                                     value={model.creditCost}
-                                                    onChange={(e) => handleUpdateModelField(model.id, 'creditCost', parseInt(e.target.value) || 0)}
-                                                    className="w-12 bg-transparent text-sm font-bold text-gray-900 dark:text-white border-none focus:ring-0 p-0 text-center outline-none"
+                                                    onChange={(e) => handleUpdateModelField(model.id, 'creditCost', parseFloat(e.target.value) || 0)}
+                                                    className="w-16 bg-transparent text-sm font-bold text-gray-900 dark:text-white border-none focus:ring-0 p-0 text-center outline-none"
                                                 />
                                             </div>
 

@@ -4,3 +4,4 @@ dist/
 config/*.local.json
 logs/
 *.log
+data/

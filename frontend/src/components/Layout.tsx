@@ -168,7 +168,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         </AnimatePresence>
       </main>
       <footer className="h-12 border-t border-gray-200 dark:border-dark-border flex items-center justify-center text-sm bg-white dark:bg-dark-card text-gray-500 dark:text-gray-400">
-        © 2025 聚合AI · All Rights Reserved (v1.0 )
+        © 2026 聚合AI · All Rights Reserved (v2.0测试版)
       </footer>
       {loc.pathname !== "/admin" && <AnnouncementModal onClose={handleAnnouncementClose} />}
 
