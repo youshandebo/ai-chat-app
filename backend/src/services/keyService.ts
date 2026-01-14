@@ -20,7 +20,7 @@ let keys: KeysData = {
     activated: {}
 };
 
-const INITIAL_CREDITS = 5;
+const INITIAL_CREDITS = 25;
 
 function ensureLoaded() {
     if (fs.existsSync(dataPath)) {
