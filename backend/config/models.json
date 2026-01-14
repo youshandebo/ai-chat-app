@@ -161,22 +161,22 @@
             "usage": 0
         },
         {
-            "id": "gemini-3-flash",
+            "id": "gemini-3-flash-preview",
             "name": "Gemini 3 Flash",
-            "apiBase": "http://107.173.101.155:8081",
-            "apiKeyEnv": "SF_API_KEY",
-            "enabled": false,
+            "apiBase": "https://liangjiewis.com",
+            "apiKeyEnv": "LIANGJIE_API_KEY",
+            "enabled": true,
             "creditCost": 1,
             "supportsStreaming": true,
             "supportsWebSearch": true,
             "contextWindow": 128000,
-            "messageFormat": "openai",
+            "messageFormat": "gemini",
             "defaultParams": {
                 "temperature": 0.7,
                 "maxTokens": 4096
             },
             "apiPaths": {
-                "chat": "/v1/chat/completions"
+                "chat": "/v1beta/models/gemini-3-flash-preview:streamGenerateContent"
             },
             "usage": 0
         },
@@ -237,6 +237,26 @@
             },
             "apiPaths": {
                 "chat": "/antigravity/v1/chat/completions"
+            },
+            "usage": 0
+        },
+        {
+            "id": "gemini-2.5-pro-nothinking",
+            "name": "Gemini 2.5 Pro (No Thinking)",
+            "apiBase": "https://liangjiewis.com",
+            "apiKeyEnv": "LIANGJIE_API_KEY",
+            "enabled": true,
+            "creditCost": 1,
+            "supportsStreaming": true,
+            "supportsWebSearch": true,
+            "contextWindow": 128000,
+            "messageFormat": "gemini",
+            "defaultParams": {
+                "temperature": 0.7,
+                "maxTokens": 4096
+            },
+            "apiPaths": {
+                "chat": "/v1/models/gemini-2.5-pro-nothinking:streamGenerateContent"
             },
             "usage": 0
         }

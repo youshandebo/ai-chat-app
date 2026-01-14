@@ -52,7 +52,7 @@ export async function callModelAPI(
       }
     } catch (e) {
       console.warn(`[ModelService] ⚠️ 主API异常，回退到备用地址:`, String(e).slice(0, 200));
-      
+
       // 使用备用API重试
       try {
         console.log(`[ModelService] 🔄 尝试备用API地址: ${model.apiBaseBackup}`);
@@ -61,7 +61,7 @@ export async function callModelAPI(
           apiBase: model.apiBaseBackup,
           _isFallbackAttempt: true
         };
-        
+
         const backupController = new AbortController();
         const backupTimeoutId = setTimeout(() => {
           console.log(`[ModelService] ⚠️ 备用API超时`);
@@ -108,11 +108,20 @@ export async function callModelAPI(
 
   const base = new URL(model.apiBase);
   const candidates: string[] = [];
+
+  // 1. Try custom path from config if provided
   if (model.apiPaths?.chat) candidates.push(model.apiPaths.chat);
   if ((model.apiPaths as any)?.chat_alt) candidates.push((model.apiPaths as any).chat_alt);
+
+  // 2. Format-specific defaults
   if (model.messageFormat === "gemini") {
-    // Only use the ID specified by the model configuration
+    // Try both beta and v1 versions, as well as streaming/non-streaming candidates
+    candidates.push(`/v1beta/models/${model.id}:streamGenerateContent`);
+    candidates.push(`/v1/models/${model.id}:streamGenerateContent`);
     candidates.push(`/models/${model.id}:streamGenerateContent`);
+    // Fallbacks for non-streaming if above fail
+    candidates.push(`/v1beta/models/${model.id}:generateContent`);
+    candidates.push(`/v1/models/${model.id}:generateContent`);
   } else {
     candidates.push("/v1/chat/completions");
   }
@@ -121,9 +130,13 @@ export async function callModelAPI(
     "Content-Type": "application/json",
     "Accept": "text/event-stream, application/json"
   };
+
   if (apiKey) {
-    if (model.messageFormat === "gemini") headers["x-goog-api-key"] = apiKey;
-    else headers["Authorization"] = `Bearer ${apiKey}`;
+    if (model.messageFormat === "gemini") {
+      headers["x-goog-api-key"] = apiKey;
+    } else {
+      headers["Authorization"] = `Bearer ${apiKey}`;
+    }
   }
 
   const clientFactory = (p: string) => {
@@ -133,8 +146,14 @@ export async function callModelAPI(
       port: base.port || undefined,
       path: (() => {
         const basePath = (base.pathname || "/").replace(/\/$/, "");
-        if (p.startsWith(basePath)) return p;
-        return basePath + (p.startsWith("/") ? p : `/${p}`);
+        let finalPath = p.startsWith(basePath) ? p : (basePath + (p.startsWith("/") ? p : `/${p}`));
+
+        // Some proxies (like liangjiewis.com snippet) require key in query param
+        if (apiKey && model.messageFormat === "gemini" && !finalPath.includes('key=')) {
+          const separator = finalPath.includes('?') ? '&' : '?';
+          finalPath += `${separator}key=${apiKey}`;
+        }
+        return finalPath;
       })(),
       method: "POST",
       headers,
