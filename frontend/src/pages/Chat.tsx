@@ -74,25 +74,24 @@ export default function Chat() {
               setIsGenerating(true);
               let acc = ""; // Move acc here to be accessible in catch block
               try {
-                // Refresh activation key balance before sending message
+                // Refresh activation key balance asynchronously (non-blocking)
                 const storedKeys = getStoredKeys();
                 const lastKey = storedKeys.pop();
                 if (lastKey) {
-                  try {
-                    // @ts-ignore
-                    const apiBase = import.meta.env.VITE_BACKEND_BASE || '';
-                    const balanceRes = await fetch(`${apiBase}/api/keys/balance`, {
-                      method: "POST",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({ key: lastKey })
-                    });
-                    if (!balanceRes.ok) {
-                      // If balance check fails, the key might be invalid
-                      console.warn(`Invalid activation key: ${lastKey}`);
+                  // Run in background without await to prevent blocking the main chat flow
+                  (async () => {
+                    try {
+                      // @ts-ignore
+                      const apiBase = import.meta.env.VITE_BACKEND_BASE || '';
+                      await fetch(`${apiBase}/api/keys/balance`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ key: lastKey })
+                      });
+                    } catch (e) {
+                      console.warn("Background balance check failed:", e);
                     }
-                  } catch (e) {
-                    console.warn("Failed to check balance:", e);
-                  }
+                  })();
                 }
 
                 const fingerprint = await getFingerprint();
