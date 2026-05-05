@@ -10,6 +10,7 @@ import Sponsor from "./pages/Sponsor";
 import Admin from "./pages/Admin";
 import Articles from "./pages/Articles";
 import ArticleDetail from "./pages/ArticleDetail";
+import ImageGen from "./pages/ImageGen";
 import NotFound from "./pages/NotFound";
 
 export default function App() {
@@ -35,6 +36,7 @@ export default function App() {
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/chat" element={<Chat />} />
+            <Route path="/image" element={<ImageGen />} />
             <Route path="/changelog" element={<Changelog />} />
             <Route path="/store" element={<Store />} />
             <Route path="/sponsor" element={<Sponsor />} />

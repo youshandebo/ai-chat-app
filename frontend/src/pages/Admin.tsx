@@ -28,7 +28,8 @@ import {
     GripVertical,
     Eye,
     EyeOff,
-    Coins
+    Coins,
+    Settings
 } from 'lucide-react';
 import { Reorder } from "framer-motion";
 
@@ -97,10 +98,24 @@ const Admin = () => {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
 
+    // First-deploy setup state
+    const [needsSetup, setNeedsSetup] = useState(false);
+    const [setupPassword, setSetupPassword] = useState('');
+    const [setupConfirm, setSetupConfirm] = useState('');
+    const [setupError, setSetupError] = useState('');
+    const [setupLoading, setSetupLoading] = useState(false);
+    const [setupDone, setSetupDone] = useState(false);
+
     const [activeTab, setActiveTab] = useState<'dashboard' | 'articles' | 'sponsors' | 'products' | 'keys' | 'models'>('dashboard');
+    const [isAddingModel, setIsAddingModel] = useState(false);
+    const [modelModalMode, setModelModalMode] = useState<'add' | 'edit'>('add');
+    const [editingModelId, setEditingModelId] = useState<string | null>(null);
+    const [newModel, setNewModel] = useState<any>({ id: '', name: '', apiBase: '', apiKey: '', creditCost: 1, enabled: true });
+    // Dashboard settings
     const [timeRange, setTimeRange] = useState<'24h' | '7d' | '30d' | '365d'>('24h');
     const [metricType, setMetricType] = useState<keyof MetricSeries>('visits');
     const [metrics, setMetrics] = useState<MetricsData | null>(null);
+    const [uptimeStart, setUptimeStart] = useState<string>('');
 
     const [articles, setArticles] = useState<Article[]>([]);
     const [isEditing, setIsEditing] = useState(false);
@@ -138,6 +153,13 @@ const Admin = () => {
         } else {
             setLoading(false);
         }
+        // Check if first-deploy setup is needed
+        fetch('/api/setup/status')
+            .then(r => r.json())
+            .then(data => {
+                if (data.needsSetup) setNeedsSetup(true);
+            })
+            .catch(() => {});
     }, []);
 
     // --- Data Fetching Effects ---
@@ -229,14 +251,29 @@ const Admin = () => {
     };
 
     // --- Handlers: Auth ---
-    const handleLogin = (e: React.FormEvent) => {
+    const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (password) {
-            sessionStorage.setItem('admin_token', password);
-            setIsAuthenticated(true);
-            setLoginError('');
-        } else {
+        if (!password) {
             setLoginError('请输入管理员密码');
+            return;
+        }
+        setLoginError('');
+        try {
+            const res = await fetch('/api/admin/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ password })
+            });
+            const data = await res.json();
+            if (res.ok && data.success && data.token) {
+                sessionStorage.setItem('admin_token', data.token);
+                setIsAuthenticated(true);
+                setLoginError('');
+            } else {
+                setLoginError(data.error || '登录失败');
+            }
+        } catch {
+            setLoginError('网络错误，请重试');
         }
     };
 
@@ -246,6 +283,26 @@ const Admin = () => {
         setMetrics(null);
         setArticles([]);
         setSponsors([]);
+    };
+
+    const handleUpdateUptime = async () => {
+        try {
+            const token = sessionStorage.getItem('admin_token');
+            const newTime = new Date(uptimeStart).getTime();
+            if (isNaN(newTime)) return alert('日期格式不正确');
+            const res = await fetch('/api/admin/settings/uptime', {
+                method: 'PUT',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ uptimeStart: newTime })
+            });
+            if (res.ok) alert('运行起始时间更新成功！');
+            else throw new Error('Update failed');
+        } catch (e) {
+            alert('更新运行时间失败');
+        }
     };
 
     // --- Handlers: Data Fetching ---
@@ -704,7 +761,9 @@ const Admin = () => {
         const currentColor = colorMap[metricType] || colorMap.visits;
 
         const points = data.map((d, i) => {
-            const x = margin.left + (i / (data.length - 1)) * chartWidth;
+            const x = data.length === 1
+                ? margin.left + chartWidth / 2
+                : margin.left + (i / (data.length - 1)) * chartWidth;
             const y = margin.top + chartHeight - ((d[metricType] as number || 0) / maxVal) * chartHeight;
             return { x, y, val: d[metricType], label: d.label };
         });
@@ -801,6 +860,121 @@ const Admin = () => {
             </div>
         );
     };
+
+    // --- First-Deploy Setup Screen ---
+    if (needsSetup && !setupDone && !isAuthenticated) {
+        const handleSetup = async (e: React.FormEvent) => {
+            e.preventDefault();
+            setSetupError('');
+            if (!setupPassword || setupPassword.length < 6) {
+                setSetupError('密码至少需要6个字符');
+                return;
+            }
+            if (setupPassword !== setupConfirm) {
+                setSetupError('两次密码不一致');
+                return;
+            }
+            setSetupLoading(true);
+            try {
+                const res = await fetch('/api/setup/init', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ password: setupPassword })
+                });
+                const data = await res.json();
+                if (res.ok && data.success) {
+                    setSetupDone(true);
+                    setNeedsSetup(false);
+                } else {
+                    setSetupError(data.error || '设置失败');
+                }
+            } catch {
+                setSetupError('网络错误，请重试');
+            } finally {
+                setSetupLoading(false);
+            }
+        };
+        return (
+            <div className="min-h-screen bg-gray-50 dark:bg-dark-bg flex items-center justify-center p-4">
+                <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="bg-white dark:bg-dark-card p-8 rounded-xl shadow-lg border border-gray-200 dark:border-dark-border w-full max-w-md"
+                >
+                    <div className="flex items-center justify-center mb-6">
+                        <div className="p-3 bg-green-100 dark:bg-green-900/30 rounded-full">
+                            <Key className="w-8 h-8 text-green-600 dark:text-green-400" />
+                        </div>
+                    </div>
+                    <h2 className="text-2xl font-bold text-center mb-2 text-gray-900 dark:text-white">初始化设置</h2>
+                    <p className="text-center text-gray-500 dark:text-gray-400 text-sm mb-6">检测到这是首次部署，请设置管理员密码</p>
+                    <form onSubmit={handleSetup} className="space-y-4">
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">设置密码</label>
+                            <input
+                                type="password"
+                                value={setupPassword}
+                                onChange={e => setSetupPassword(e.target.value)}
+                                className="w-full px-4 py-2 border border-gray-300 dark:border-dark-border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent bg-white dark:bg-dark-bg text-gray-900 dark:text-white"
+                                placeholder="至少6个字符"
+                                minLength={6}
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">确认密码</label>
+                            <input
+                                type="password"
+                                value={setupConfirm}
+                                onChange={e => setSetupConfirm(e.target.value)}
+                                className="w-full px-4 py-2 border border-gray-300 dark:border-dark-border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent bg-white dark:bg-dark-bg text-gray-900 dark:text-white"
+                                placeholder="再次输入密码"
+                            />
+                        </div>
+                        {setupError && (
+                            <div className="flex items-center gap-2 text-red-600 text-sm">
+                                <AlertCircle className="w-4 h-4" />
+                                {setupError}
+                            </div>
+                        )}
+                        <button
+                            type="submit"
+                            disabled={setupLoading}
+                            className="w-full bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white py-2 px-4 rounded-lg font-medium transition-colors"
+                        >
+                            {setupLoading ? '设置中...' : '设置管理员密码'}
+                        </button>
+                    </form>
+                </motion.div>
+            </div>
+        );
+    }
+
+    // --- Setup Done: Prompt Login ---
+    if (setupDone) {
+        return (
+            <div className="min-h-screen bg-gray-50 dark:bg-dark-bg flex items-center justify-center p-4">
+                <motion.div
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    className="bg-white dark:bg-dark-card p-8 rounded-xl shadow-lg border border-gray-200 dark:border-dark-border w-full max-w-md"
+                >
+                    <div className="flex items-center justify-center mb-6">
+                        <div className="p-3 bg-green-100 dark:bg-green-900/30 rounded-full">
+                            <CheckCircle className="w-8 h-8 text-green-600 dark:text-green-400" />
+                        </div>
+                    </div>
+                    <h2 className="text-2xl font-bold text-center mb-2 text-gray-900 dark:text-white">设置成功！</h2>
+                    <p className="text-center text-gray-500 dark:text-gray-400 text-sm mb-6">管理员密码已设置完成，请使用您刚设置的密码登录管理面板。</p>
+                    <button
+                        onClick={() => { setSetupDone(false); }}
+                        className="w-full bg-primary hover:bg-primary/90 text-white py-2 px-4 rounded-lg font-medium transition-colors"
+                    >
+                        前往登录
+                    </button>
+                </motion.div>
+            </div>
+        );
+    }
 
     // --- Login Screen ---
     if (!isAuthenticated) {
@@ -1019,14 +1193,44 @@ const Admin = () => {
                             </motion.div>
                         </div>
 
-                        {/* Time Range Selector */}
-                        <div className="bg-white dark:bg-dark-card p-6 rounded-xl border border-gray-200 dark:border-dark-border shadow-sm">
-                            <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
-                                <div className="flex items-center gap-2">
-                                    <BarChart3 className="w-5 h-5 text-primary" />
-                                    <h2 className="text-lg font-semibold text-gray-900 dark:text-white">数据趋势</h2>
+                        {/* Settings & Time Range Selector Row */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            {/* Site Settings */}
+                            <div className="bg-white dark:bg-dark-card p-6 rounded-xl border border-gray-200 dark:border-dark-border shadow-sm">
+                                <div className="flex items-center gap-2 mb-4">
+                                    <Settings className="w-5 h-5 text-primary" />
+                                    <h2 className="text-lg font-semibold text-gray-900 dark:text-white">站点配置</h2>
                                 </div>
-                                <div className="flex items-center gap-2">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                        网站稳定运行起始时间
+                                    </label>
+                                    <div className="flex gap-2">
+                                        <input 
+                                            type="datetime-local" 
+                                            value={uptimeStart}
+                                            onChange={e => setUptimeStart(e.target.value)}
+                                            className="px-3 py-2 border border-gray-300 dark:border-dark-border rounded-lg text-sm bg-white dark:bg-dark-bg text-gray-900 dark:text-white flex-1"
+                                        />
+                                        <button 
+                                            onClick={handleUpdateUptime}
+                                            className="px-4 py-2 bg-primary hover:bg-primary/90 text-white text-sm rounded-lg transition-colors"
+                                        >
+                                            保存
+                                        </button>
+                                    </div>
+                                    <p className="text-xs text-gray-500 mt-2">将显示在首页赞助板块的上方</p>
+                                </div>
+                            </div>
+
+                            {/* Time Range Selector */}
+                            <div className="bg-white dark:bg-dark-card p-6 rounded-xl border border-gray-200 dark:border-dark-border shadow-sm">
+                                <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
+                                    <div className="flex items-center gap-2">
+                                        <BarChart3 className="w-5 h-5 text-primary" />
+                                        <h2 className="text-lg font-semibold text-gray-900 dark:text-white">数据趋势</h2>
+                                    </div>
+                                    <div className="flex items-center gap-2">
                                     <select
                                         value={metricType}
                                         onChange={e => setMetricType(e.target.value as keyof MetricSeries)}
@@ -1073,6 +1277,7 @@ const Admin = () => {
                                     <Chart data={metrics.series} metricType={metricType} />
                                 </>
                             )}
+                        </div>
                         </div>
 
                         {/* Data Table */}
@@ -1846,14 +2051,28 @@ const Admin = () => {
                                     </h2>
                                     <p className="text-sm text-gray-500 mt-1">拖动模型调整排序，修改额度消耗或上下架状态。</p>
                                 </div>
-                                <button
-                                    onClick={() => handleSaveModels()}
-                                    disabled={saveStatus === 'saving'}
-                                    className="px-4 py-2 bg-primary hover:bg-primary/90 text-white rounded-lg flex items-center gap-2 transition-all shadow-md shadow-primary/20 disabled:opacity-50"
-                                >
-                                    {saveStatus === 'saving' ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                                    保存更改
-                                </button>
+                                <div className="flex items-center gap-3">
+                                    <button
+                                        onClick={() => {
+                                            setModelModalMode('add');
+                                            setEditingModelId(null);
+                                            setNewModel({ id: '', name: '', apiBase: '', apiKey: '', creditCost: 1, enabled: true });
+                                            setIsAddingModel(true);
+                                        }}
+                                        className="px-4 py-2 border border-gray-200 dark:border-dark-border text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-dark-bg transition-colors rounded-lg flex items-center gap-2 font-medium"
+                                    >
+                                        <Plus className="w-4 h-4" />
+                                        添加模型
+                                    </button>
+                                    <button
+                                        onClick={() => handleSaveModels()}
+                                        disabled={saveStatus === 'saving'}
+                                        className="px-4 py-2 bg-primary hover:bg-primary/90 text-white rounded-lg flex items-center gap-2 transition-all shadow-md shadow-primary/20 disabled:opacity-50"
+                                    >
+                                        {saveStatus === 'saving' ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                                        保存更改
+                                    </button>
+                                </div>
                             </div>
 
                             <Reorder.Group
@@ -1888,16 +2107,27 @@ const Admin = () => {
                                         </div>
 
                                         <div className="flex items-center gap-6 justify-between sm:justify-end">
-                                            <div className="flex items-center gap-2 bg-white dark:bg-dark-card border border-gray-200 dark:border-dark-border rounded-lg px-3 py-1.5">
+                                            <div className="flex items-center gap-1 bg-white dark:bg-dark-card border border-gray-200 dark:border-dark-border rounded-lg px-2 py-1">
                                                 <Coins className="w-4 h-4 text-amber-500" />
                                                 <span className="text-xs text-gray-500 whitespace-nowrap">额度:</span>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleUpdateModelField(model.id, 'creditCost', Math.max(0, Math.round(((model.creditCost || 0) - 0.1) * 10) / 10))}
+                                                    className="w-6 h-6 flex items-center justify-center rounded bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 text-sm font-bold transition-colors"
+                                                >−</button>
                                                 <input
                                                     type="number"
-                                                    step="0.001"
+                                                    step="0.1"
+                                                    min="0"
                                                     value={model.creditCost}
                                                     onChange={(e) => handleUpdateModelField(model.id, 'creditCost', parseFloat(e.target.value) || 0)}
-                                                    className="w-16 bg-transparent text-sm font-bold text-gray-900 dark:text-white border-none focus:ring-0 p-0 text-center outline-none"
+                                                    className="w-16 bg-transparent text-sm font-bold text-gray-900 dark:text-white border-none focus:ring-0 p-0 text-center outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                                 />
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleUpdateModelField(model.id, 'creditCost', Math.round(((model.creditCost || 0) + 0.1) * 10) / 10)}
+                                                    className="w-6 h-6 flex items-center justify-center rounded bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 text-sm font-bold transition-colors"
+                                                >+</button>
                                             </div>
 
                                             <button
@@ -1909,6 +2139,29 @@ const Admin = () => {
                                             >
                                                 {model.enabled ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
                                                 {model.enabled ? '已上架' : '已下架'}
+                                            </button>
+                                            <button
+                                                onClick={() => {
+                                                    setModelModalMode('edit');
+                                                    setEditingModelId(model.id);
+                                                    setNewModel({...model});
+                                                    setIsAddingModel(true);
+                                                }}
+                                                className="p-1.5 text-blue-500 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors ml-2"
+                                                title="深度编辑模型"
+                                            >
+                                                <Edit className="w-4 h-4" />
+                                            </button>
+                                            <button
+                                                onClick={() => {
+                                                    if (window.confirm('确定要删除这个模型吗？点击"保存更改"后生效。')) {
+                                                        setAdminModels(prev => prev.filter(m => m.id !== model.id));
+                                                    }
+                                                }}
+                                                className="p-1.5 text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors ml-2"
+                                                title="删除模型"
+                                            >
+                                                <Trash2 className="w-4 h-4" />
                                             </button>
                                         </div>
                                     </Reorder.Item>
@@ -1922,6 +2175,74 @@ const Admin = () => {
                                 </div>
                             )}
                         </div>
+
+                        {/* Add Model Modal */}
+                        {isAddingModel && (
+                            <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+                                <div className="bg-white dark:bg-dark-card rounded-2xl w-full max-w-md p-6 shadow-2xl border border-gray-200 dark:border-dark-border">
+                                    <div className="flex items-center justify-between mb-6">
+                                        <h3 className="text-xl font-bold text-gray-900 dark:text-white">
+                                            {modelModalMode === 'edit' ? '编辑现有模型' : '添加新模型'}
+                                        </h3>
+                                        <button onClick={() => setIsAddingModel(false)} className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded-lg transition-colors">
+                                            <X className="w-5 h-5" />
+                                        </button>
+                                    </div>
+                                    <div className="space-y-4">
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">显示名称 (Name) <span className="text-red-500">*</span></label>
+                                            <input type="text" value={newModel.name} onChange={e => setNewModel({...newModel, name: e.target.value})} className="w-full px-4 py-2 bg-gray-50 dark:bg-dark-bg border border-gray-200 dark:border-dark-border rounded-xl text-gray-900 dark:text-white focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all" placeholder="例如: GPT-4o" />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">实际模型名 (ID) <span className="text-red-500">*</span></label>
+                                            <input type="text" value={newModel.id} onChange={e => setNewModel({...newModel, id: e.target.value})} className="w-full px-4 py-2 bg-gray-50 dark:bg-dark-bg border border-gray-200 dark:border-dark-border rounded-xl text-gray-900 dark:text-white focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all font-mono text-sm" placeholder="例如: gpt-4o" />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">请求地址 (API Base) <span className="text-gray-400 text-xs font-normal">选填</span></label>
+                                            <input type="text" value={newModel.apiBase} onChange={e => setNewModel({...newModel, apiBase: e.target.value})} className="w-full px-4 py-2 bg-gray-50 dark:bg-dark-bg border border-gray-200 dark:border-dark-border rounded-xl text-gray-900 dark:text-white focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all font-mono text-sm" placeholder="默认使用后端配置的 Base" />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">密钥 (API Key) <span className="text-gray-400 text-xs font-normal">选填，加密存储</span></label>
+                                            <input type="password" value={newModel.apiKey} onChange={e => setNewModel({...newModel, apiKey: e.target.value})} className="w-full px-4 py-2 bg-gray-50 dark:bg-dark-bg border border-gray-200 dark:border-dark-border rounded-xl text-gray-900 dark:text-white focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all font-mono text-sm" placeholder="sk-..." />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">默认消耗额度 (Credit Cost)</label>
+                                            <input type="number" step="0.1" value={newModel.creditCost} onChange={e => setNewModel({...newModel, creditCost: parseFloat(e.target.value) || 0})} className="w-full px-4 py-2 bg-gray-50 dark:bg-dark-bg border border-gray-200 dark:border-dark-border rounded-xl text-gray-900 dark:text-white focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all font-mono text-sm" />
+                                        </div>
+                                    </div>
+                                    <div className="mt-8 flex justify-end gap-3">
+                                        <button onClick={() => setIsAddingModel(false)} className="px-5 py-2.5 border border-gray-200 dark:border-dark-border text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-dark-bg rounded-xl transition-colors font-medium">取消</button>
+                                        <button 
+                                            onClick={() => {
+                                                if (!newModel.id || !newModel.name) {
+                                                    alert('请填写显示名称和实际模型名！');
+                                                    return;
+                                                }
+                                                if (modelModalMode === 'add') {
+                                                    if (adminModels.some(m => m.id === newModel.id)) {
+                                                        alert('该模型 ID 已存在！请更换。');
+                                                        return;
+                                                    }
+                                                    setAdminModels(prev => [...prev, newModel]);
+                                                } else {
+                                                    if (newModel.id !== editingModelId && adminModels.some(m => m.id === newModel.id)) {
+                                                        alert('新的模型 ID 与其他模型冲突！请更换。');
+                                                        return;
+                                                    }
+                                                    setAdminModels(prev => prev.map(m => m.id === editingModelId ? newModel : m));
+                                                }
+                                                setIsAddingModel(false);
+                                                setEditingModelId(null);
+                                                setNewModel({ id: '', name: '', apiBase: '', apiKey: '', creditCost: 1, enabled: true });
+                                            }} 
+                                            className="px-5 py-2.5 bg-primary text-white hover:bg-primary/90 rounded-xl transition-all shadow-md shadow-primary/20 font-medium"
+                                        >
+                                            {modelModalMode === 'edit' ? '保存修改' : '确认添加'}
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 )}
 
@@ -1958,7 +2279,7 @@ const Admin = () => {
                             <div className="space-y-4">
                                 <div>
                                     <h3 className="font-semibold text-gray-700 dark:text-gray-300 mb-2">未使用密钥 ({keysData.unused.length})</h3>
-                                    <div className="max-h-60 overflow-y-auto bg-gray-50 dark:bg-dark-bg/50 rounded-lg p-4 border border-gray-200 dark:border-dark-border">
+                                    <div className="max-h-96 overflow-y-auto bg-gray-50 dark:bg-dark-bg/50 rounded-lg p-4 border border-gray-200 dark:border-dark-border scroll-smooth" style={{ overscrollBehavior: 'contain' }}>
                                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
                                             {keysData.unused.map(k => (
                                                 <div key={k} className="flex items-center justify-between bg-white dark:bg-dark-card p-2 rounded border border-gray-200 dark:border-dark-border text-xs font-mono">
@@ -1982,7 +2303,7 @@ const Admin = () => {
 
                                 <div>
                                     <h3 className="font-semibold text-gray-700 dark:text-gray-300 mb-2">已激活密钥详情 ({Object.keys(keysData.activated).length})</h3>
-                                    <div className="max-h-60 overflow-y-auto bg-gray-50 dark:bg-dark-bg/50 rounded-lg p-4 border border-gray-200 dark:border-dark-border">
+                                    <div className="max-h-96 overflow-y-auto bg-gray-50 dark:bg-dark-bg/50 rounded-lg p-4 border border-gray-200 dark:border-dark-border scroll-smooth" style={{ overscrollBehavior: 'contain' }}>
                                         <table className="w-full text-xs text-left">
                                             <thead>
                                                 <tr className="text-gray-500 dark:text-gray-400 border-b border-gray-200 dark:border-dark-border">

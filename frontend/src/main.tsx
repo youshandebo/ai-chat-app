@@ -4,7 +4,7 @@ import App from "./App";
 import "./index.css";
 import { useChatStore } from "./store/useChatStore";
 
-const applyTheme = (t: "light" | "dark" | "auto") => {
+const applyTheme = (t: "light" | "dark" | "auto" | "new-year") => {
   const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
   const isDark = t === "dark" || (t === "auto" && prefersDark);
   document.documentElement.classList.toggle("dark", isDark);

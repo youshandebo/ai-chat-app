@@ -136,6 +136,17 @@ export function checkLimit(fingerprint: string, ip: string, amount: number = 1):
     }
 
     const max = fpData.role === 'restricted' ? Limits.RESTRICTED : Limits.NORMAL;
+    
+    // Always allow 0-cost (free) models regardless of past usage
+    if (amount === 0) {
+        return {
+            allowed: true,
+            remaining: Math.max(0, max - fpData.count),
+            role: fpData.role,
+            showWarning
+        };
+    }
+
     const allowed = fpData.count + amount <= max;
 
     return {

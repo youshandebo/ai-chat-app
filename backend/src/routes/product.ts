@@ -62,7 +62,14 @@ router.post("/admin/products", requireAdmin, (req, res) => {
 // 更新商品
 router.put("/admin/products/:id", requireAdmin, (req, res) => {
     try {
-        const updated = ProductService.update(req.params.id, req.body);
+        const allowed: Record<string, any> = {};
+        if (req.body.name !== undefined) allowed.name = req.body.name;
+        if (req.body.description !== undefined) allowed.description = req.body.description;
+        if (req.body.price !== undefined) allowed.price = req.body.price;
+        if (req.body.image !== undefined) allowed.image = req.body.image;
+        if (req.body.afdianLink !== undefined) allowed.afdianLink = req.body.afdianLink;
+        if (req.body.enabled !== undefined) allowed.enabled = !!req.body.enabled;
+        const updated = ProductService.update(req.params.id, allowed);
         if (!updated) {
             return res.status(404).json({ error: "商品不存在" });
         }
@@ -103,13 +110,18 @@ router.post("/afdian/webhook", (req, res) => {
         const { ec, data, sign } = req.body;
         const token = process.env.AFDIAN_WEBHOOK_TOKEN;
 
-        // 签名校验
-        if (token) {
-            const mySign = crypto.createHash('md5').update(token + JSON.stringify(data)).digest('hex');
-            if (mySign !== sign) {
-                console.warn("[Afdian Webhook] Invalid signature");
-                return res.json({ ec: 200, em: "invalid signature" });
-            }
+        // 签名校验 - require token to be configured
+        if (!token) {
+            console.error("[Afdian Webhook] AFDIAN_WEBHOOK_TOKEN not configured - rejecting webhook");
+            return res.status(500).json({ ec: 500, em: "webhook not configured" });
+        }
+        if (!sign || !data) {
+            return res.json({ ec: 200, em: "missing sign or data" });
+        }
+        const mySign = crypto.createHash('md5').update(token + JSON.stringify(data)).digest('hex');
+        if (mySign !== sign) {
+            console.warn("[Afdian Webhook] Invalid signature");
+            return res.json({ ec: 200, em: "invalid signature" });
         }
 
         console.log("[Afdian Webhook] Received callback (data masked)");

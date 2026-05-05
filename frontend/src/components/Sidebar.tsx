@@ -14,7 +14,9 @@ export default function Sidebar({ onOpenActivation }: SidebarProps) {
   const [isOpen, setIsOpen] = useState(false);
 
   useEffect(() => {
-    fetch(`/api/models`)
+    // @ts-ignore
+    const apiBase = import.meta.env.VITE_BACKEND_BASE || '';
+    fetch(`${apiBase}/api/models`)
       .then(async (r) => {
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
         return r.json();

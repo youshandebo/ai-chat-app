@@ -154,9 +154,10 @@ const GridDot = memo(function GridDot({
         influence = 0.15 + breathe;
     } else if (mouseX !== null && mouseY !== null) {
         const dist = Math.sqrt((mouseX - pxX) ** 2 + (mouseY - pxY) ** 2);
-        influence = Math.max(0, 1 - dist / 200);
-        tx = (mouseX - pxX) * influence * 0.12;
-        ty = (mouseY - pxY) * influence * 0.12;
+        // Expanded reaction radius to 500px so it actually moves nicely
+        influence = Math.max(0, 1 - dist / 500);
+        tx = (mouseX - pxX) * influence * 0.25;
+        ty = (mouseY - pxY) * influence * 0.25;
     }
 
     const r = 2.5 + influence * 5;

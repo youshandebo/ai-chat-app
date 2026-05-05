@@ -47,7 +47,7 @@ cd ../frontend && npm install && npm run build
 cat > backend/.env << 'EOF'
 PORT=6555
 CORS_ORIGIN=*
-ADMIN_TOKEN=fnx081013fnx
+ADMIN_TOKEN=your_secure_token_here
 RATE_LIMIT_PER_MINUTE=120
 NODE_ENV=production
 GEMINI_API_KEY=sk-your-key
@@ -108,7 +108,7 @@ sudo bash scripts/setup-nginx.sh yourshandebo.xx.kg 6555 6556 6557
 PORT=6555                          # 监听端口
 CORS_ORIGIN=*                      # CORS 跨域配置
 NODE_ENV=production                # 运行环境
-ADMIN_TOKEN=fnx081013fnx           # 管理面板认证 Token
+ADMIN_TOKEN=your_secure_token_here  # 管理面板认证 Token
 
 # API 限流
 RATE_LIMIT_PER_MINUTE=120          # 每分钟最大请求数
@@ -123,7 +123,7 @@ CLAUDE_API_KEY=sk-your-claude-key
 
 ```env
 VITE_BACKEND_BASE=http://localhost:6555
-VITE_ADMIN_TOKEN=fnx081013fnx
+VITE_ADMIN_TOKEN=your_secure_token_here
 ```
 
 ## 📊 PM2 命令
@@ -227,7 +227,7 @@ pm2 restart ai-chat-backend-6555
 
 ## 📈 管理面板
 
-访问 `http://localhost:6556/admin`，输入 Token: `fnx081013fnx`
+访问 `http://localhost:6556/admin`，输入你设置的 ADMIN_TOKEN
 
 ### 可用功能
 

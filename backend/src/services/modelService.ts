@@ -26,36 +26,27 @@ export async function callModelAPI(
   // Priority fallback for Gemini 2.5 Flash and Gemini 2.5 Pro - try backup endpoint if primary fails
   if ((model.id === 'gemini-2.5-flash' || model.id === 'gemini-2.5-pro' || model.id === 'gemini-2.5-flash-sf') && model.apiBaseBackup && !(model as any)._isFallbackAttempt) {
     try {
-      console.log(`[ModelService] ✅ 优先使用主API地址: ${model.apiBase}`);
       const primaryModel = {
         ...model,
         _isFallbackAttempt: true
       };
 
-      // 使用较长的超时时间
       const primaryController = new AbortController();
       const primaryTimeoutId = setTimeout(() => {
-        console.log(`[ModelService] ⚠️ 主API超时，即将回退到备用地址: ${model.apiBaseBackup}`);
         primaryController.abort();
-      }, 15000); // 15秒超时
+      }, 15000);
 
       try {
         const result = await callModelAPI(primaryModel, messages, apiKey, onChunk, primaryController.signal, webSearch);
         clearTimeout(primaryTimeoutId);
-        console.log(`[ModelService] ✅ 主API成功完成`);
         return result;
       } catch (err) {
         clearTimeout(primaryTimeoutId);
-        console.warn(`[ModelService] ⚠️ 主API失败:`, String(err).slice(0, 200));
-        // 继续执行备用逻辑
         throw err;
       }
     } catch (e) {
-      console.warn(`[ModelService] ⚠️ 主API异常，回退到备用地址:`, String(e).slice(0, 200));
-
-      // 使用备用API重试
+      // Fallback to backup API
       try {
-        console.log(`[ModelService] 🔄 尝试备用API地址: ${model.apiBaseBackup}`);
         const backupModel = {
           ...model,
           apiBase: model.apiBaseBackup,
@@ -64,22 +55,18 @@ export async function callModelAPI(
 
         const backupController = new AbortController();
         const backupTimeoutId = setTimeout(() => {
-          console.log(`[ModelService] ⚠️ 备用API超时`);
           backupController.abort();
         }, 15000);
 
         try {
           const result = await callModelAPI(backupModel, messages, apiKey, onChunk, backupController.signal, webSearch);
           clearTimeout(backupTimeoutId);
-          console.log(`[ModelService] ✅ 备用API成功完成`);
           return result;
         } catch (backupErr) {
           clearTimeout(backupTimeoutId);
-          console.error(`[ModelService] ❌ 备用API也失败:`, String(backupErr).slice(0, 200));
           throw backupErr;
         }
       } catch (backupError) {
-        console.error(`[ModelService] ❌ 所有API均失败`, String(backupError).slice(0, 200));
         throw backupError;
       }
     }
@@ -103,8 +90,10 @@ export async function callModelAPI(
 
   const body = JSON.stringify(requestBody);
 
-  // DEBUG LOG
-  console.log(`[ModelService] Sending to ${model.apiBase}:`, body.length > 100 ? body.slice(0, 100) + "... [MASKED]" : body);
+  // DEBUG LOG (only in development)
+  if (process.env.NODE_ENV !== 'production') {
+    console.log(`[ModelService] Sending to ${model.apiBase}:`, body.length > 100 ? body.slice(0, 100) + "... [MASKED]" : body);
+  }
 
   const base = new URL(model.apiBase);
   const candidates: string[] = [];
@@ -148,11 +137,7 @@ export async function callModelAPI(
         const basePath = (base.pathname || "/").replace(/\/$/, "");
         let finalPath = p.startsWith(basePath) ? p : (basePath + (p.startsWith("/") ? p : `/${p}`));
 
-        // Some proxies (like liangjiewis.com snippet) require key in query param
-        if (apiKey && model.messageFormat === "gemini" && !finalPath.includes('key=')) {
-          const separator = finalPath.includes('?') ? '&' : '?';
-          finalPath += `${separator}key=${apiKey}`;
-        }
+        // API key is sent via x-goog-api-key header, not URL param (security)
         return finalPath;
       })(),
       method: "POST",
@@ -174,7 +159,6 @@ export async function callModelAPI(
 
         // Listen for abort signal to destroy connection
         const abortHandler = () => {
-          console.log('[ModelAPI] Abort signal received, destroying connection');
           res.destroy();
           req.destroy();
           reject(new Error('Aborted by client'));
@@ -189,15 +173,32 @@ export async function callModelAPI(
           abortSignal?.removeEventListener('abort', abortHandler);
         });
 
+        // Handle HTTP errors FIRST, before registering normal data handlers
+        if (res.statusCode && res.statusCode >= 400) {
+          let errorBody = "";
+          res.on("data", (chunk) => { errorBody += chunk; });
+          res.on("end", () => {
+            // Extract meaningful error message from upstream
+            let errorMsg = "";
+            try {
+              const errParsed = JSON.parse(errorBody);
+              errorMsg = errParsed?.error?.message || errParsed?.error || errParsed?.message || "";
+            } catch { }
+            const errText = errorMsg || errorBody.slice(0, 200);
+            const err = new Error(`HTTP ${res.statusCode}: ${errText}`);
+            (err as any).statusCode = res.statusCode;
+            reject(err);
+          });
+          res.on("error", reject);
+          return;
+        }
+
         const contentType = String(res.headers["content-type"] || "");
         let buffer = "";
         let isSSE = contentType.includes("text/event-stream");
 
-        console.log(`[ModelAPI] Start. Content-Type: ${contentType}, isSSE: ${isSSE}`);
-
         res.on("data", (chunk) => {
           const str = chunk.toString();
-          console.log(`[ModelAPI Data] Chunk size: ${str.length}, content: [MASKED]`);
 
           buffer += str;
 
@@ -209,7 +210,6 @@ export async function callModelAPI(
             /data:\s?\[DONE\]/.test(buffer)
           )) {
             isSSE = true;
-            console.log("[ModelAPI] SSE Detected via body sniffing or header!");
           }
 
           if (isSSE) {
@@ -217,15 +217,11 @@ export async function callModelAPI(
             const lines = buffer.split("\n");
             buffer = lines.pop() || ""; // Keep inconsistent line in buffer
 
-            console.log(`[ModelAPI] Processing ${lines.length} lines`);
-
             for (const line of lines) {
               const trimmed = line.trim();
               if (trimmed.startsWith("data:")) {
                 const data = trimmed.slice(5).trim();
-                console.log(`[ModelAPI] 处理data行 (长度: ${data.length})`);
                 if (data === "[DONE]") {
-                  console.log("[ModelAPI] ✅ 收到[DONE]信号");
                   onChunk?.({ content: "", done: true });
                   resolve(null);
                 } else {
@@ -238,13 +234,10 @@ export async function callModelAPI(
                       "";
 
                     if (content) {
-                      console.log(`[ModelAPI] ✅ 提取到内容 (长度: ${content.length})`);
                       onChunk?.({ content, done: false });
-                    } else {
-                      console.log(`[ModelAPI] ⚠️ 解析成功但无content:`, JSON.stringify(parsed).slice(0, 150));
                     }
                   } catch (e) {
-                    console.log("[ModelAPI] ❌ JSON解析失败", e);
+                    // Skip unparseable SSE lines
                   }
                 }
               }
@@ -271,22 +264,11 @@ export async function callModelAPI(
           }
         });
         res.on("error", reject);
-        if (res.statusCode && res.statusCode >= 400) {
-          // Consume the error body to provide meaningful debug info
-          let errorBody = "";
-          res.on("data", (chunk) => { errorBody += chunk; });
-          res.on("end", () => {
-            console.error(`[ModelAPI Error] Status: ${res.statusCode}, Body: ${errorBody.slice(0, 500)}`);
-            reject(new Error(`HTTP ${res.statusCode}: ${errorBody.slice(0, 200)}`));
-          });
-          return;
-        }
       });
       req.on("error", reject);
 
       // Set 30s timeout for overall request
       req.setTimeout(30000, () => {
-        console.warn(`[ModelAPI] Request timeout (30s) for path: ${opts.path}`);
         req.destroy();
         reject(new Error("Request Timeout (30s)"));
       });
@@ -295,11 +277,24 @@ export async function callModelAPI(
       req.end();
     });
 
+  // Try candidate paths, but only fallback to next path on 404 (Not Found).
+  // For other errors (401, 403, 429, 500, etc.), throw immediately to avoid
+  // duplicate API calls and charges.
+  let lastError: Error | null = null;
   for (const p of candidates) {
     try {
       const result = await attempt(p);
       return result;
-    } catch { }
+    } catch (err: any) {
+      lastError = err;
+      const statusCode = err?.statusCode;
+      // Only retry on 404 (path not found) - other errors mean the API was reached
+      // but rejected the request, so retrying with a different path would cause
+      // duplicate charges
+      if (statusCode && statusCode !== 404) {
+        throw err;
+      }
+    }
   }
-  throw new Error("All endpoints failed");
+  throw lastError || new Error("All endpoints failed");
 }

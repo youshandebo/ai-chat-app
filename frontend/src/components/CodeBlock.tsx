@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Copy, Check, Code2 } from "lucide-react";
+import DOMPurify from "dompurify";
 
 type Props = { code: string; language?: string };
 
@@ -29,7 +30,7 @@ export default function CodeBlock({ code, language }: Props) {
         ]);
         const grammar = Prism.languages[lang] || Prism.languages.plaintext;
         const highlighted = Prism.highlight(code, grammar, lang);
-        if (mounted) setHtml(highlighted);
+        if (mounted) setHtml(DOMPurify.sanitize(highlighted));
       } catch {
         if (mounted) setHtml("");
       }

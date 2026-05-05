@@ -1,264 +1,36 @@
 {
     "models": [
         {
-            "id": "gemini-2.5-flash",
-            "name": "Gemini 2.5 Flash",
-            "apiBase": "https://catiecli.sukaka.top/v1",
-            "apiBaseBackup": "https://tb.api.mkeai.com/v1",
-            "apiKeyEnv": "CATIECLI_API_KEY",
+            "id": "gpt-image-2",
+            "name": "GPT Image 2（文生图）",
+            "type": "image",
+            "apiBase": "https://your-relay-station.com",
             "enabled": true,
-            "creditCost": 34,
-            "supportsStreaming": true,
-            "contextWindow": 128000,
-            "messageFormat": "openai",
-            "defaultParams": {
-                "temperature": 0.7,
-                "maxTokens": 4096
-            },
+            "creditCost": 2,
+            "supportsGenerate": true,
+            "supportsEdit": false,
+            "maxImages": 4,
             "apiPaths": {
-                "chat": "/v1/chat/completions"
+                "generate": "/v1/images/generations"
             },
-            "usage": 11
+            "apiKey": ""
         },
         {
-            "id": "gemini-2.5-flash-sf",
-            "name": "Gemini 2.5 Flash（官逆）",
-            "apiBase": "http://107.173.101.155:8081",
-            "apiKeyEnv": "SF_API_KEY",
-            "enabled": false,
-            "creditCost": 1,
-            "supportsStreaming": true,
-            "supportsWebSearch": true,
-            "contextWindow": 128000,
-            "messageFormat": "openai",
-            "defaultParams": {
-                "temperature": 0.7,
-                "maxTokens": 4096
-            },
-            "apiPaths": {
-                "chat": "/v1/chat/completions"
-            },
-            "usage": 0
-        },
-        {
-            "id": "gemini-2.5-flash-thinking",
-            "name": "Gemini 2.5 Flash Thinking",
-            "apiBase": "http://107.173.101.155:8081",
-            "apiKeyEnv": "SF_API_KEY",
-            "enabled": false,
-            "creditCost": 1,
-            "supportsStreaming": true,
-            "supportsWebSearch": true,
-            "contextWindow": 128000,
-            "messageFormat": "openai",
-            "defaultParams": {
-                "temperature": 0.7,
-                "maxTokens": 4096
-            },
-            "apiPaths": {
-                "chat": "/v1/chat/completions"
-            },
-            "usage": 0
-        },
-        {
-            "id": "gemini-2.5-pro",
-            "name": "Gemini 2.5 Pro",
-            "apiBase": "https://catiecli.sukaka.top/v1",
-            "apiBaseBackup": "https://tb.api.mkeai.com/v1",
-            "apiKeyEnv": "CATIECLI_API_KEY",
-            "enabled": false,
-            "creditCost": 1,
-            "supportsStreaming": true,
-            "supportsWebSearch": true,
-            "contextWindow": 128000,
-            "messageFormat": "openai",
-            "defaultParams": {
-                "temperature": 0.7,
-                "maxTokens": 4096
-            },
-            "apiPaths": {
-                "chat": "/v1/chat/completions"
-            },
-            "usage": 0
-        },
-        {
-            "id": "gpt-5-nano-2025-08-07",
-            "name": "GPT-5 Nano",
-            "apiBase": "https://api.vectorengine.ai/v1",
-            "apiKeyEnv": "VECTORENGINE_API_KEY",
-            "enabled": false,
-            "creditCost": 1,
-            "supportsStreaming": true,
-            "contextWindow": 128000,
-            "messageFormat": "openai",
-            "defaultParams": {
-                "temperature": 0.7,
-                "maxTokens": 4096
-            },
-            "apiPaths": {
-                "chat": "/chat/completions"
-            },
-            "usage": 0
-        },
-        {
-            "id": "gemini-3-pro-high",
-            "name": "Gemini 3 Pro High",
-            "apiBase": "http://107.173.101.155:8081",
-            "apiKeyEnv": "SF_API_KEY",
-            "enabled": false,
-            "creditCost": 1,
-            "supportsStreaming": true,
-            "supportsWebSearch": true,
-            "contextWindow": 128000,
-            "messageFormat": "openai",
-            "defaultParams": {
-                "temperature": 0.7,
-                "maxTokens": 4096
-            },
-            "apiPaths": {
-                "chat": "/v1/chat/completions"
-            },
-            "usage": 0
-        },
-        {
-            "id": "gemini-3-pro-low",
-            "name": "Gemini 3 Pro Low",
-            "apiBase": "http://107.173.101.155:8081",
-            "apiKeyEnv": "SF_API_KEY",
-            "enabled": false,
-            "creditCost": 1,
-            "supportsStreaming": true,
-            "supportsWebSearch": true,
-            "contextWindow": 128000,
-            "messageFormat": "openai",
-            "defaultParams": {
-                "temperature": 0.7,
-                "maxTokens": 4096
-            },
-            "apiPaths": {
-                "chat": "/v1/chat/completions"
-            },
-            "usage": 0
-        },
-        {
-            "id": "gemini-3-pro-image",
-            "name": "Gemini 3 Pro Image",
-            "apiBase": "http://107.173.101.155:8081",
-            "apiKeyEnv": "SF_API_KEY",
-            "enabled": false,
-            "creditCost": 1,
-            "supportsStreaming": true,
-            "supportsWebSearch": true,
-            "contextWindow": 128000,
-            "messageFormat": "openai",
-            "defaultParams": {
-                "temperature": 0.7,
-                "maxTokens": 4096
-            },
-            "apiPaths": {
-                "chat": "/v1/chat/completions"
-            },
-            "usage": 0
-        },
-        {
-            "id": "gemini-3-flash-preview",
-            "name": "Gemini 3 Flash",
-            "apiBase": "https://liangjiewis.com",
-            "apiKeyEnv": "LIANGJIE_API_KEY",
+            "id": "gpt-image-2-all",
+            "name": "GPT Image 2 All（图生图+文生图）",
+            "type": "image",
+            "apiBase": "https://your-relay-station.com",
             "enabled": true,
-            "creditCost": 1,
-            "supportsStreaming": true,
-            "supportsWebSearch": true,
-            "contextWindow": 128000,
-            "messageFormat": "gemini",
-            "defaultParams": {
-                "temperature": 0.7,
-                "maxTokens": 4096
-            },
+            "creditCost": 2,
+            "supportsGenerate": true,
+            "supportsEdit": true,
+            "maxImages": 5,
             "apiPaths": {
-                "chat": "/v1beta/models/gemini-3-flash-preview:streamGenerateContent"
+                "generate": "/v1/images/generations",
+                "edit": "/v1/images/edits"
             },
-            "usage": 0
-        },
-        {
-            "id": "claude-sonnet-4-5",
-            "name": "Claude Sonnet 4.5",
-            "apiBase": "http://107.173.101.155:8081",
-            "apiKeyEnv": "SF_API_KEY",
-            "enabled": false,
-            "creditCost": 1,
-            "supportsStreaming": true,
-            "supportsWebSearch": true,
-            "contextWindow": 200000,
-            "messageFormat": "openai",
-            "defaultParams": {
-                "temperature": 0.7,
-                "maxTokens": 4096
-            },
-            "apiPaths": {
-                "chat": "/antigravity/v1/chat/completions"
-            },
-            "usage": 0
-        },
-        {
-            "id": "claude-sonnet-4-5-thinking",
-            "name": "Claude Sonnet 4.5 Thinking",
-            "apiBase": "http://107.173.101.155:8081",
-            "apiKeyEnv": "SF_API_KEY",
-            "enabled": false,
-            "creditCost": 1,
-            "supportsStreaming": true,
-            "supportsWebSearch": true,
-            "contextWindow": 200000,
-            "messageFormat": "openai",
-            "defaultParams": {
-                "temperature": 0.7,
-                "maxTokens": 4096
-            },
-            "apiPaths": {
-                "chat": "/antigravity/v1/chat/completions"
-            },
-            "usage": 0
-        },
-        {
-            "id": "claude-opus-4-5-thinking",
-            "name": "Claude Opus 4.5 Thinking",
-            "apiBase": "http://107.173.101.155:8081",
-            "apiKeyEnv": "SF_API_KEY",
-            "enabled": false,
-            "creditCost": 1,
-            "supportsStreaming": true,
-            "supportsWebSearch": true,
-            "contextWindow": 200000,
-            "messageFormat": "openai",
-            "defaultParams": {
-                "temperature": 0.7,
-                "maxTokens": 4096
-            },
-            "apiPaths": {
-                "chat": "/antigravity/v1/chat/completions"
-            },
-            "usage": 0
-        },
-        {
-            "id": "gemini-2.5-pro-nothinking",
-            "name": "Gemini 2.5 Pro (No Thinking)",
-            "apiBase": "https://liangjiewis.com",
-            "apiKeyEnv": "LIANGJIE_API_KEY",
-            "enabled": true,
-            "creditCost": 1,
-            "supportsStreaming": true,
-            "supportsWebSearch": true,
-            "contextWindow": 128000,
-            "messageFormat": "gemini",
-            "defaultParams": {
-                "temperature": 0.7,
-                "maxTokens": 4096
-            },
-            "apiPaths": {
-                "chat": "/v1/models/gemini-2.5-pro-nothinking:streamGenerateContent"
-            },
-            "usage": 0
+            "apiKey": ""
         }
     ]
 }
+

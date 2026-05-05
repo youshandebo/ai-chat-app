@@ -59,10 +59,14 @@ router.post("/keys/balance", (req, res) => {
         if (!normalizedKey) {
             return res.status(400).json({ error: "请提供密钥" });
         }
+        // Validate key format to prevent enumeration
+        if (!/^Y[A-Z0-9]{4}-S[A-Z0-9]{4}-D[A-Z0-9]{4}-B[A-Z0-9]{4}$/.test(normalizedKey)) {
+            return res.json({ balance: 0 });
+        }
         const balance = KeyService.getBalance(normalizedKey);
-        res.json({ key: normalizedKey, balance });
+        res.json({ balance });
     } catch (e: any) {
-        res.status(500).json({ error: e.message });
+        res.status(500).json({ error: "查询失败" });
     }
 });
 

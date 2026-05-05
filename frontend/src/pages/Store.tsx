@@ -25,7 +25,9 @@ export default function Store() {
     const fetchProducts = async () => {
         try {
             setLoading(true);
-            const res = await fetch('/api/products');
+            // @ts-ignore
+            const apiBase = import.meta.env.VITE_BACKEND_BASE || '';
+            const res = await fetch(`${apiBase}/api/products`);
             if (!res.ok) throw new Error('Failed to fetch products');
             const data = await res.json();
             setProducts(data);

@@ -2,17 +2,53 @@ import express from "express";
 import { getMetrics, getSeries, getModelUsage } from "../services/metrics";
 import { getModelConfig, saveModels } from "../config/models";
 import { loadModels } from "../config/models";
+import { requireAdmin } from "../middleware/auth";
+import { getAdminCredential, verifyPassword, createSession } from "../services/authService";
 
 const router = express.Router();
 
-router.post("/reload-models", (req, res) => {
-  const auth = (req.get("authorization") || (req.headers["authorization"] as string) || "").trim();
-  const token = process.env.ADMIN_TOKEN || "";
-  console.log("Admin access attempt:", { auth: auth ? "Bearer ******" : "[EMPTY]", expected: "Bearer ******" });
-  if (auth !== `Bearer ${token}`) {
-    console.warn("Admin auth failed:", { authPassed: false });
-    return res.status(403).json({ error: "无权访问: Token mismatch" });
+// Login endpoint - verifies password server-side and returns session token
+router.post("/login", (req, res) => {
+  try {
+    const { password } = req.body;
+    if (!password || typeof password !== 'string') {
+      return res.status(400).json({ error: "请提供密码" });
+    }
+
+    const cred = getAdminCredential();
+    if (!cred.value) {
+      return res.status(500).json({ error: "管理员未配置" });
+    }
+
+    let valid = false;
+    if (cred.isHash) {
+      valid = verifyPassword(password, cred.value);
+    } else {
+      // Legacy plain text comparison (constant-time)
+      const crypto = require('crypto');
+      try {
+        const a = Buffer.from(password);
+        const b = Buffer.from(cred.value);
+        valid = a.length === b.length && crypto.timingSafeEqual(a, b);
+      } catch {
+        valid = false;
+      }
+    }
+
+    if (!valid) {
+      return res.status(401).json({ error: "密码错误" });
+    }
+
+    const ip = (req.headers['x-forwarded-for'] as string || req.socket.remoteAddress || '').split(',')[0].trim();
+    const token = createSession(ip);
+    res.json({ success: true, token });
+  } catch (e: any) {
+    console.error("[Login Error]", e);
+    res.status(500).json({ error: "登录失败" });
   }
+});
+
+router.post("/reload-models", requireAdmin, (req, res) => {
   try {
     loadModels();
     res.json({ success: true, message: "模型配置已重载" });
@@ -22,20 +58,16 @@ router.post("/reload-models", (req, res) => {
 });
 
 // Get all models for admin (including disabled ones)
-router.get("/models", (req, res) => {
-  const auth = (req.get("authorization") || (req.headers["authorization"] as string) || "").trim();
-  const token = process.env.ADMIN_TOKEN || "";
-  if (auth !== `Bearer ${token}`) return res.status(403).json({ error: "无权访问" });
-
+router.get("/models", requireAdmin, (req, res) => {
   try {
     const config = getModelConfig();
     const usage = getModelUsage();
 
     // Attach usage stats to model list
-    const models = config.models.map((m: any) => ({
-      ...m,
-      usage: usage[m.id] || 0
-    }));
+    const models = config.models.map((m: any) => {
+      const { apiKey, ...rest } = m;
+      return { ...rest, usage: usage[m.id] || 0 };
+    });
 
     res.json({ models });
   } catch (e: any) {
@@ -44,59 +76,34 @@ router.get("/models", (req, res) => {
 });
 
 // Update models (reorder, toggle enabled, update fields)
-router.put("/models", (req, res) => {
-  const auth = (req.get("authorization") || (req.headers["authorization"] as string) || "").trim();
-  const token = process.env.ADMIN_TOKEN || "";
-  if (auth !== `Bearer ${token}`) return res.status(403).json({ error: "无权访问" });
-
+router.put("/models", requireAdmin, (req, res) => {
   try {
     const { models } = req.body;
     if (!Array.isArray(models)) {
       return res.status(400).json({ error: "models 必须是数组" });
     }
-    saveModels(models);
+    
+    // Clean up runtime fields before persisting
+    const cleanModels = models.map(({ usage, ...rest }) => rest);
+    saveModels(cleanModels);
     res.json({ success: true });
   } catch (e: any) {
     res.status(500).json({ error: e.message });
   }
 });
 
-router.get("/health", (req, res) => {
-  const auth = (req.get("authorization") || (req.headers["authorization"] as string) || "").trim();
-  const token = process.env.ADMIN_TOKEN || "";
-  console.log("Health check access attempt:", { auth: auth ? "Bearer ******" : "[EMPTY]" });
-  if (auth !== `Bearer ${token}`) {
-    return res.status(403).json({ error: "无权访问" });
-  }
+router.get("/health", requireAdmin, (req, res) => {
   const cfg = getModelConfig();
   res.json({ ok: true, modelsCount: Array.isArray(cfg?.models) ? cfg.models.length : 0, cors: process.env.CORS_ORIGIN || "" });
 });
 
-router.get("/info", (req, res) => {
-  const auth = (req.get("authorization") || (req.headers["authorization"] as string) || "").trim();
-  const token = process.env.ADMIN_TOKEN || "";
-  if (auth !== `Bearer ${token}`) {
-    return res.status(403).json({ error: "无权访问" });
-  }
+router.get("/info", requireAdmin, (req, res) => {
   const cfg = getModelConfig();
   const models = (cfg?.models || []).map((m: any) => ({ id: m.id, name: m.name }));
   res.json({ models });
 });
 
-router.get("/metrics", (req, res) => {
-  const auth = (req.get("authorization") || (req.headers["authorization"] as string) || "").trim();
-  const token = process.env.ADMIN_TOKEN || "";
-
-  console.log("[METRICS] Request:", {
-    auth: auth ? 'Bearer ***' : '[MISS]',
-    range: req.query.range
-  });
-
-  if (auth !== `Bearer ${token}`) {
-    console.warn("[METRICS] Auth failed");
-    return res.status(403).json({ error: "无权访问" });
-  }
-
+router.get("/metrics", requireAdmin, (req, res) => {
   try {
     const range = (req.query.range as string) || "24h";
     console.log("[METRICS] Range:", range);
@@ -106,9 +113,8 @@ router.get("/metrics", (req, res) => {
     res.json({ ...m, range, series });
   } catch (error: any) {
     console.error("[METRICS] ERROR:", error.message);
-    console.error("[METRICS] Stack:", error.stack);
-    res.status(500).json({ error: "Internal Server Error", msg: error.message });
+    res.status(500).json({ error: "Internal Server Error" });
   }
 });
 
-export default router;
+export default router;

@@ -6,10 +6,12 @@ const dataPath = path.resolve(process.cwd(), "data/settings.json");
 
 interface GlobalSettings {
     theme: string; // "default" | "new-year"
+    uptimeStart: number;
 }
 
 let settings: GlobalSettings = {
-    theme: "default"
+    theme: "default",
+    uptimeStart: Date.now()
 };
 
 function ensureLoaded() {
@@ -17,9 +19,10 @@ function ensureLoaded() {
         try {
             const raw = fs.readFileSync(dataPath, "utf-8");
             settings = JSON.parse(raw);
+            if (!settings.uptimeStart) settings.uptimeStart = Date.now();
         } catch (e) {
             console.error("Failed to parse settings.json", e);
-            settings = { theme: "default" };
+            settings = { theme: "default", uptimeStart: Date.now() };
         }
     }
 }
@@ -45,7 +48,20 @@ export function setTheme(theme: string): void {
     persist();
 }
 
+export function getUptimeStart(): number {
+    ensureLoaded();
+    return settings.uptimeStart;
+}
+
+export function setUptimeStart(start: number): void {
+    ensureLoaded();
+    settings.uptimeStart = start;
+    persist();
+}
+
 export const SettingsService = {
     getTheme,
-    setTheme
+    setTheme,
+    getUptimeStart,
+    setUptimeStart
 };

@@ -63,7 +63,13 @@ router.post("/admin/articles", requireAdmin, (req, res) => {
 
 router.put("/admin/articles/:id", requireAdmin, (req, res) => {
     try {
-        const article = updateArticle(req.params.id, req.body);
+        const allowed: Record<string, any> = {};
+        if (req.body.title !== undefined) allowed.title = req.body.title;
+        if (req.body.content !== undefined) allowed.content = req.body.content;
+        if (req.body.author !== undefined) allowed.author = req.body.author;
+        if (req.body.published !== undefined) allowed.published = !!req.body.published;
+        if (req.body.tags !== undefined) allowed.tags = req.body.tags;
+        const article = updateArticle(req.params.id, allowed);
         if (!article) {
             return res.status(404).json({ error: "Article not found" });
         }

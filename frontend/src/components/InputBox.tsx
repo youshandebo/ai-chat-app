@@ -1,4 +1,5 @@
 import { useRef, useState, useEffect } from "react";
+import { Paperclip, Send, Edit } from "lucide-react";
 
 const ALLOWED_TEXT_TYPES = ['.txt', '.md', '.markdown', '.json', '.csv'];
 const ALLOWED_IMAGE_TYPES = ['.jpg', '.jpeg', '.png'];
@@ -123,48 +124,50 @@ export default function InputBox({ onSend, editingMessage, onCancelEdit }: Input
         </div>
       )}
 
-      {/* Main input area */}
-      <div className="flex items-end gap-3">
-        <div className="flex-1 relative">
-          <textarea
-            ref={textareaRef}
-            className="w-full border-2 border-gray-200 dark:border-dark-border rounded-2xl px-4 py-3 min-h-[100px] sm:min-h-[80px] bg-white dark:bg-dark-card text-gray-900 dark:text-dark-text placeholder-gray-400 dark:placeholder-gray-500 shadow-sm resize-none transition-all duration-200 focus:border-primary dark:focus:border-primary focus:ring-2 focus:ring-primary/20 focus:outline-none"
-            placeholder={editingMessage ? "编辑你的消息..." : pendingFile ? "输入你的问题..." : "输入消息，Enter 发送，Shift+Enter 换行..."}
-            value={val}
-            onChange={(e) => setVal(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                handleSend();
-              }
-            }}
-          />
-        </div>
+      {/* Main input area (Unified Modern Design) */}
+      <div className="relative flex flex-col w-full border-2 border-gray-200 dark:border-dark-border rounded-2xl bg-white dark:bg-dark-card shadow-sm transition-all duration-200 focus-within:border-primary dark:focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20">
+        <textarea
+          ref={textareaRef}
+          className="w-full bg-transparent px-4 py-3 min-h-[100px] sm:min-h-[80px] max-h-[300px] text-gray-900 dark:text-dark-text placeholder-gray-400 dark:placeholder-gray-500 resize-y outline-none border-none focus:ring-0"
+          placeholder={editingMessage ? "编辑你的消息..." : pendingFile ? "输入你的问题..." : "输入消息，Enter 发送，Shift+Enter 换行..."}
+          value={val}
+          onChange={(e) => setVal(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.shiftKey) {
+              e.preventDefault();
+              handleSend();
+            }
+          }}
+        />
 
-        {/* Action buttons */}
-        <div className="flex flex-col gap-2">
-          <input
-            ref={fileRef}
-            type="file"
-            accept=".txt,.md,.markdown,.json,.csv,.jpg,.jpeg,.png"
-            className="hidden"
-            onChange={handleFileSelect}
-          />
+        {/* Toolbar & Send Button */}
+        <div className="flex items-center justify-between px-2 py-2 mt-1 border-t border-gray-100 dark:border-dark-border/60">
+          {/* Left tools */}
+          <div className="flex items-center gap-1">
+            <input
+              ref={fileRef}
+              type="file"
+              accept=".txt,.md,.markdown,.json,.csv,.jpg,.jpeg,.png"
+              className="hidden"
+              onChange={handleFileSelect}
+            />
+            <button
+              onClick={() => fileRef.current?.click()}
+              className="p-2 text-gray-400 hover:text-primary dark:hover:text-primary hover:bg-gray-100 dark:hover:bg-dark-bg rounded-xl transition-colors"
+              title="上传文档或图片 (最大5MB)"
+            >
+              <Paperclip className="w-5 h-5" />
+            </button>
+          </div>
+
+          {/* Right actions */}
           <button
-            className="group flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl border-2 border-gray-200 dark:border-dark-border bg-white dark:bg-dark-card text-gray-600 dark:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-200 text-sm font-medium"
-            onClick={() => fileRef.current?.click()}
-            title="上传文档或图片 (最大5MB)"
-          >
-            <span className="text-lg">📎</span>
-            <span className="hidden sm:inline">上传</span>
-          </button>
-          <button
-            className="group flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-gradient-to-r from-primary to-indigo-500 text-white hover:from-indigo-500 hover:to-primary transition-all duration-300 shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30 hover:scale-[1.02] active:scale-[0.98] text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
             onClick={handleSend}
             disabled={!val.trim() && !pendingFile}
+            className="flex items-center gap-2 px-4 py-2 bg-primary text-white hover:bg-primary/90 rounded-xl transition-all shadow-md shadow-primary/20 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:shadow-none font-medium"
           >
-            <span className="text-lg">▶</span>
-            <span className="hidden sm:inline">{editingMessage ? '重发' : '发送'}</span>
+            <span className="hidden sm:inline">{editingMessage ? '发送编辑' : '发送消息'}</span>
+            {editingMessage ? <Edit className="w-4 h-4" /> : <Send className="w-4 h-4" />}
           </button>
         </div>
       </div>

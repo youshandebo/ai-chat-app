@@ -110,7 +110,6 @@ export default function Chat() {
                   stream: true,
                   webSearch: webSearchEnabled
                 } as any;
-                console.log("send payload", { modelId, payload, webSearch: webSearchEnabled });
 
                 // @ts-ignore
                 const apiBase = import.meta.env.VITE_BACKEND_BASE || '';
@@ -137,19 +136,18 @@ export default function Chat() {
                 if (!res.ok) {
                   let errorMessage = `HTTP ${res.status}`;
                   try {
-                    const errorJson = await res.json();
-                    if (errorJson.error) errorMessage = errorJson.error;
-                  } catch {
-                    // If JSON parse fails, try text
+                    const errorText = await res.text();
                     try {
-                      const text = await res.text();
-                      if (text) errorMessage = `HTTP ${res.status}: ${text.slice(0, 100)}`;
-                    } catch { }
-                  }
+                      const errorJson = JSON.parse(errorText);
+                      if (errorJson.error) errorMessage = errorJson.error;
+                    } catch {
+                      if (errorText) errorMessage = `HTTP ${res.status}: ${errorText.slice(0, 100)}`;
+                    }
+                  } catch { }
                   throw new Error(errorMessage);
                 }
                 const ct = res.headers.get("content-type") || "";
-                if (res.body && ct.includes("text/event-stream")) {
+                if (res.body && (ct.includes("text/event-stream") || ct.includes("stream"))) {
                   const reader = res.body.getReader();
                   const decoder = new TextDecoder();
                   let buf = "";
@@ -161,6 +159,8 @@ export default function Chat() {
                     const lines = buf.split("\n");
                     buf = lines.pop() || "";
                     for (const line of lines) {
+                      // Skip SSE comments (heartbeats etc.)
+                      if (line.startsWith(":")) continue;
                       if (line.startsWith("data: ")) {
                         const data = line.slice(6);
                         if (data === "[DONE]") {
@@ -168,6 +168,9 @@ export default function Chat() {
                         } else {
                           try {
                             const parsed = JSON.parse(data);
+                            if (parsed.error) {
+                              throw new Error(parsed.error);
+                            }
                             const chunk = parsed.content || parsed.choices?.[0]?.delta?.content || "";
                             if (chunk) {
                               if (!hasReceivedContent) {
@@ -178,11 +181,14 @@ export default function Chat() {
                               }
                               updateMessage(chatId, asstId, acc);
                             }
-                          } catch { }
+                          } catch (parseErr: any) {
+                            // Skip unparseable SSE data lines (not errors)
+                          }
                         }
                       }
                     }
                   }
+                  setIsGenerating(false);
                 } else {
                   const ct2 = res.headers.get("content-type") || "";
                   const text = await res.text();
@@ -203,13 +209,13 @@ export default function Chat() {
                 }
               } catch (e: any) {
                 if (e.name === 'AbortError' || e.message?.includes('aborted')) {
-                  updateMessage(chatId, asstId, acc + "\n\n[用户手动停止输出]");
+                  updateMessage(chatId, asstId, (acc || "") + "\n\n[用户手动停止输出]");
                   setIsGenerating(false);
                   return;
                 }
-                console.error("chat error", e);
-                setError(e?.message || String(e));
-                updateMessage(chatId, asstId, e?.message || String(e));
+                const errorMsg = e?.message || "请求失败，请稍后重试";
+                setError(errorMsg);
+                updateMessage(chatId, asstId, `❌ ${errorMsg}`);
                 setIsGenerating(false);
               }
             }} />

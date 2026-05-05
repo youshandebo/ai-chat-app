@@ -4,25 +4,23 @@ import { transformMessages } from "../utils/transform";
 import { getModelConfig } from "../config/models";
 import { logModelUsage } from "../services/metrics";
 import { logCall, logError } from "../services/metrics";
+import { UsageService } from "../services/usageService";
+import { KeyService } from "../services/keyService";
+import { logger } from "../utils/logger";
 
 const router = express.Router();
 
 router.get("/models", (req, res) => {
   const allModels = getModelConfig().models;
-  const models = allModels.filter((m: any) => m.enabled !== false).map((m: any) => ({
+  const models = allModels.filter((m: any) => m.enabled !== false && m.type !== 'image').map((m: any) => ({
     id: m.id,
     name: m.name,
     contextWindow: m.contextWindow,
     supportsStreaming: m.supportsStreaming,
-    creditCost: m.creditCost || 1,
+    creditCost: m.creditCost !== undefined ? Number(m.creditCost) : 1,
   }));
   res.json(models);
 });
-
-import { UsageService } from "../services/usageService";
-import { KeyService } from "../services/keyService";
-
-// ... existing imports
 
 router.post("/chat/:modelId", async (req, res) => {
   const { modelId } = req.params as any;
@@ -43,7 +41,7 @@ router.post("/chat/:modelId", async (req, res) => {
   if (!model) return res.status(404).json({ error: "模型不存在" });
   if (model.enabled === false) return res.status(403).json({ error: "该模型已禁用" });
 
-  const creditCost = model.creditCost || 1;
+  const creditCost = model.creditCost !== undefined ? Number(model.creditCost) : 1;
 
   // Check Limit
   const { allowed, remaining, role, showWarning } = UsageService.checkLimit(fingerprint, ip, creditCost);
@@ -81,30 +79,31 @@ router.post("/chat/:modelId", async (req, res) => {
   }
 
   const { messages, stream = true, webSearch = false } = req.body || {};
-  console.log("/api/chat", { origin: req.headers.origin, ip: ip ? "***" : "[EMPTY]", modelId, webSearch, fingerprint: fingerprint ? "***" : "[EMPTY]", remaining, role });
+
+  // Validate messages array
+  if (!Array.isArray(messages) || messages.length === 0) {
+    return res.status(400).json({ error: "消息列表不能为空" });
+  }
+  if (messages.length > 100) {
+    return res.status(400).json({ error: "消息列表过长（最多100条）" });
+  }
 
   // Log usage
   logModelUsage(modelId);
   let useModel = model;
-  let useApiKey = process.env[model.apiKeyEnv];
-
-  // DEBUG LOG
-  console.log(`[Chat Debug] Model: ${modelId}, EnvVar: ${model.apiKeyEnv}, KeyPresent: ${!!useApiKey}, Mode: ${stream ? 'stream' : 'unary'}`);
+  let useApiKey = model.apiKey;
 
   const allowFallback = (process.env.ALLOW_MODEL_FALLBACK || "false").toLowerCase() === "true";
-  if ((!useApiKey && model.apiKeyEnv) && allowFallback) {
+  if (!useApiKey && allowFallback) {
     const fallback = cfg.models.find((m: any) => m.id === "deepseek-openai-mock");
     if (fallback) {
       useModel = fallback;
       useApiKey = undefined;
     }
   }
-  // Allow bypassing missing key if it is a priority model handled in modelService
-  const isPriorityModel = modelId === 'gemini-2.5-flash' || modelId === 'gemini-2.5-flash-sf';
-
-  if (!useApiKey && model.apiKeyEnv && useModel.id === model.id && !isPriorityModel) {
-    console.error(`[Chat Error] Missing API Key. EnvVar: ${model.apiKeyEnv}`);
-    return res.status(500).json({ error: `Server Configuration Error: Missing API Key for ${model.apiKeyEnv}` });
+  if (!useApiKey && useModel.id !== "deepseek-openai-mock") {
+    console.error(`[Chat Error] Missing API Key for model ${model.id}`);
+    return res.status(500).json({ error: `系统未配置该模型的 API Key，请联系管理员配置。` });
   }
   const transformed = transformMessages(messages || [], useModel.messageFormat);
   // Create AbortController for client disconnect detection
@@ -115,10 +114,7 @@ router.post("/chat/:modelId", async (req, res) => {
   req.on('close', () => {
     if (!res.writableEnded && !res.headersSent) {
       clientDisconnected = true;
-      console.log(`[Chat] ⚠️ 客户端在发送任何数据前断开连接，模型: ${modelId}`);
       abortController.abort();
-    } else if (!res.writableEnded && res.headersSent) {
-      console.log(`[Chat] ⚠️ 客户端在流式传输中断开连接，已发送 ${chunkCount} 个数据包`);
     }
   });
 
@@ -142,44 +138,42 @@ router.post("/chat/:modelId", async (req, res) => {
 
   try {
     if (stream) {
-      console.log(`[Chat Stream] 开始流式响应处理，模型: ${modelId}`);
       res.setHeader("Content-Type", "text/event-stream");
-      res.setHeader("Cache-Control", "no-cache");
+      res.setHeader("Cache-Control", "no-cache, no-transform");
       res.setHeader("Connection", "keep-alive");
       res.setHeader("X-Accel-Buffering", "no"); // Disable Nginx buffering explicitly
+      res.flushHeaders(); // Force send headers immediately
 
       // Send 4KB padding to bypass proxy/browser verify buffering
-      console.log(`[Chat Stream] 发送4KB填充数据...`);
       res.write(":" + " ".repeat(4096) + "\n\n");
       (res as any).flush?.();
 
-      console.log(`[Chat Stream] 调用 callModelAPI，useModel ID: ${useModel.id}，useApiKey: ${useApiKey ? '已设置' : '未设置'}`);
+      // Heartbeat to keep connection alive and prevent proxy buffering
+      const heartbeatInterval = setInterval(() => {
+        if (!res.writableEnded && !clientDisconnected) {
+          res.write(": heartbeat\n\n");
+          (res as any).flush?.();
+        } else {
+          clearInterval(heartbeatInterval);
+        }
+      }, 15000);
+
       await callModelAPI(useModel, transformed, useApiKey, (chunk) => {
         // Skip writing if client already disconnected
-        if (clientDisconnected) {
-          console.log(`[Chat Stream] 客户端已断开连接，跳过写入`);
-          return;
-        }
+        if (clientDisconnected) return;
 
         // Count usage on first successful chunk
         trackUsage();
 
         chunkCount++;
-        console.log(`[Chat Stream] ✅ 回调接收到数据包 #${chunkCount}: content="${chunk.content?.slice(0, 50)}", done=${chunk.done}`);
-        const dataStr = `data: ${JSON.stringify(chunk)}\n\n`;
-        console.log(`[Chat Stream] 写入SSE数据: ${dataStr.slice(0, 100)}`);
-        res.write(dataStr);
+        res.write(`data: ${JSON.stringify(chunk)}\n\n`);
         (res as any).flush?.(); // Ensure chunks are sent immediately
       }, abortController.signal, webSearch);
 
-      console.log(`[Chat Stream] callModelAPI 完成，共接收到 ${chunkCount} 个数据包`);
-      console.log(`[Chat Stream] 发送[DONE]信号...`);
+      clearInterval(heartbeatInterval);
       res.write("data: [DONE]\n\n");
       (res as any).flush?.();
-      res.write(" ".repeat(1024) + "\n\n"); // Extra padding at the end
-      (res as any).flush?.();
       res.end();
-      console.log(`[Chat Stream] 流式响应结束`);
       // Record successful API call
       logCall();
     } else {
@@ -193,19 +187,31 @@ router.post("/chat/:modelId", async (req, res) => {
       logCall();
     }
   } catch (e: any) {
-    // Record error
-    console.error(`[Chat Error] modelId: ${req.params.modelId}`, e); // Explicit logging
+    // Record explicit error logs internally
+    logger.error(`[Chat Error] modelId: ${req.params.modelId}`, {
+      error: e.message,
+      stack: e.stack,
+      fingerprint,
+      modelId: req.params.modelId
+    });
+    
     logError();
     const m = String(e?.message || "").match(/HTTP (\d{3})/);
     const sc = m ? parseInt(m[1], 10) : 500;
 
+    // Filter basic errors for user UI
+    const userMessage = sc === 429 ? "请求过于频繁或额度受限，请稍后再试 (HTTP 429)" :
+                        sc === 500 ? "服务内部组件异常，请稍后重试 (HTTP 500)" :
+                        [502, 503, 504].includes(sc) ? `上游模型接口可能掉线或超载，请稍后再试 (HTTP ${sc})` :
+                        `网络请求或模型响应失败 (HTTP ${sc})`;
+
     if (res.headersSent) {
       // If headers sent, we must send error as SSE data
-      res.write(`data: ${JSON.stringify({ error: `模型调用失败: ${e.message}` })}\n\n`);
+      res.write(`data: ${JSON.stringify({ error: userMessage })}\n\n`);
       res.write("data: [DONE]\n\n");
       res.end();
     } else {
-      res.status(sc).json({ error: `模型调用失败: ${e.message}` });
+      res.status(sc).json({ error: userMessage });
     }
   }
 });

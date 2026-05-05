@@ -17,6 +17,8 @@ import voteRouter from "./routes/vote";
 import productRouter from "./routes/product";
 import keysRouter from "./routes/keys";
 import settingsRouter from "./routes/settings";
+import setupRouter from "./routes/setup";
+import imageRouter from "./routes/image";
 import { metricsMiddleware } from "./services/metrics";
 
 dotenv.config();
@@ -68,7 +70,7 @@ app.use(compression({
       return false;
     }
     // Strongly disable for chat API to prevent buffering
-    if (req.path.includes('/api/chat') || req.path.includes('/chat')) {
+    if (req.path.includes('/chat')) {
       return false;
     }
     if (res.getHeader('Content-Type') === 'text/event-stream') {
@@ -94,7 +96,7 @@ app.use('/api/uploads', express.static(uploadsPath));
 
 // Improved CORS configuration
 // Use strict environment variable control
-const corsOrigin = process.env.CORS_ORIGIN || "*";
+const corsOrigin = process.env.CORS_ORIGIN || "";
 const allowedOrigins = corsOrigin.split(",").map(o => o.trim()).filter(Boolean);
 
 app.use(
@@ -103,13 +105,17 @@ app.use(
       // Allow requests with no origin (like mobile apps or curl requests)
       if (!origin) return callback(null, true);
 
-      // If CORS_ORIGIN is * or not set, be permissive for compatibility (or restrict if security demands)
-      // For this user app, defaulting to allowing localhost dev ports if env is empty is safer for dev
+      // If CORS_ORIGIN is "*", allow all origins
+      if (corsOrigin === "*") return callback(null, true);
+      // If not configured at all, block cross-origin requests
+      if (!corsOrigin) {
+        logger.warn(`CORS blocked origin (CORS_ORIGIN not configured): ${origin}`);
+        return callback(new Error("CORS not configured"));
+      }
+
       const devOrigins = ["http://localhost:5173", "http://localhost:6556"];
 
-      const isAllowed =
-        (corsOrigin !== "*" && allowedOrigins.includes(origin))
-        || devOrigins.includes(origin); // Fallback for dev ease-of-use
+      const isAllowed = allowedOrigins.includes(origin) || devOrigins.includes(origin);
 
       if (isAllowed) {
         callback(null, true);
@@ -152,6 +158,8 @@ app.use("/api", voteRouter);
 app.use("/api", productRouter);
 app.use("/api", keysRouter);
 app.use("/api", settingsRouter);
+app.use("/api", setupRouter);
+app.use("/api", imageRouter);
 
 // Global error handler - must be last
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {

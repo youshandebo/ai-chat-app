@@ -34,7 +34,7 @@ router.get("/rss", (req, res) => {
       <guid isPermaLink="true">${link}</guid>
       <pubDate>${date}</pubDate>
       <description><![CDATA[${desc}]]></description>
-      <author>${article.author}</author>
+      <author><![CDATA[${article.author}]]></author>
     </item>`;
         });
 

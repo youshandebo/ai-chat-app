@@ -29,13 +29,18 @@ function ensureVotesFile() {
     }
 }
 
+const MAX_VOTES = 10000;
+
 // Store vote
 router.post('/vote', (req, res) => {
     try {
         const { messageId, vote, timestamp } = req.body;
 
-        if (!messageId) {
-            return res.status(400).json({ error: 'messageId required' });
+        if (!messageId || typeof messageId !== 'string' || messageId.length > 200) {
+            return res.status(400).json({ error: 'invalid messageId' });
+        }
+        if (vote !== null && vote !== 'up' && vote !== 'down') {
+            return res.status(400).json({ error: 'vote must be "up", "down", or null' });
         }
 
         ensureVotesFile();
@@ -55,17 +60,21 @@ router.post('/vote', (req, res) => {
             if (existingIndex !== -1) {
                 data.votes[existingIndex] = newVote;
             } else {
+                // Prevent unbounded growth: prune oldest votes when limit reached
+                if (data.votes.length >= MAX_VOTES) {
+                    data.votes.sort((a, b) => a.timestamp - b.timestamp);
+                    data.votes.splice(0, data.votes.length - MAX_VOTES + 1);
+                }
                 data.votes.push(newVote);
             }
         }
 
         writeJsonAtomic(votesPath, data);
 
-        console.log(`[Vote] ${messageId}: ${vote}`);
         res.json({ success: true });
     } catch (e: any) {
         console.error('[Vote Error]', e);
-        res.status(500).json({ error: e.message });
+        res.status(500).json({ error: 'Internal Server Error' });
     }
 });
 
@@ -85,7 +94,8 @@ router.get('/votes/stats', requireAdmin, (req, res) => {
             ratio: upCount / (upCount + downCount || 1)
         });
     } catch (e: any) {
-        res.status(500).json({ error: e.message });
+        console.error('[Vote Stats Error]', e);
+        res.status(500).json({ error: 'Internal Server Error' });
     }
 });
 

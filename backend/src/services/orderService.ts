@@ -1,6 +1,7 @@
 import fs from "fs";
 import path from "path";
 import { randomUUID } from "crypto";
+import { writeJsonAtomic } from "../utils/fileUtils";
 
 const dataPath = path.resolve(process.cwd(), "data/orders.json");
 
@@ -32,8 +33,6 @@ function ensureLoaded() {
         orders = [];
     }
 }
-
-import { writeJsonAtomic } from "../utils/fileUtils";
 
 function persist() {
     try {

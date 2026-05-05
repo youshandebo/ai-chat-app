@@ -124,7 +124,7 @@ export const useChatStore = create<ChatState>()(
     }),
     {
       name: "ai-chat-storage",
-      partialize: (s) => ({ chats: s.chats, tags: s.tags, settings: s.settings }),
+      partialize: (s) => ({ chats: s.chats, tags: s.tags, currentChatId: s.currentChatId, settings: s.settings }),
     }
   )
 );

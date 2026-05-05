@@ -44,7 +44,7 @@ export default function ArticleDetail() {
                 if (Array.isArray(allArticles)) {
                     const others = allArticles.filter((a: Article) => a.id !== currentArticle.id && a.published);
                     const rated = others.map(a => {
-                        const commonTags = a.tags?.filter(t => currentArticle.tags?.includes(t)).length || 0;
+                        const commonTags = a.tags?.filter((t: string) => currentArticle.tags?.includes(t)).length || 0;
                         return { ...a, commonTags };
                     });
 

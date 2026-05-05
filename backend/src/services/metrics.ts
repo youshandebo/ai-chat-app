@@ -5,6 +5,10 @@ import { writeJsonAtomic } from "../utils/fileUtils";
 type Range = "24h" | "7d" | "30d" | "365d";
 
 const dataPath = path.resolve(process.cwd(), "data/metrics.json");
+const archiveDir = path.resolve(process.cwd(), "data/archives");
+
+const DATA_LIMIT = 100000; // Keep 100k entries in memory
+const ARCHIVE_THRESHOLD = 110000; // Archive when exceeding this
 
 let active = 0;
 let maxActive = 0;
@@ -24,8 +28,42 @@ function persist() {
   }
 }
 
+function archiveOldData() {
+  try {
+    if (!fs.existsSync(archiveDir)) {
+      fs.mkdirSync(archiveDir, { recursive: true });
+    }
+    const now = new Date();
+    const archiveLabel = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    const archivePath = path.join(archiveDir, `metrics-archive-${archiveLabel}.json`);
+
+    // Load existing archive or create new
+    let archive: any = { calls: [], errors: [], visitorLog: [] };
+    if (fs.existsSync(archivePath)) {
+      try {
+        archive = JSON.parse(fs.readFileSync(archivePath, 'utf-8'));
+      } catch { /* start fresh if corrupt */ }
+    }
+
+    // Move oldest entries to archive
+    const callsToArchive = calls.length > DATA_LIMIT ? calls.splice(0, calls.length - DATA_LIMIT) : [];
+    const errorsToArchive = errors.length > DATA_LIMIT ? errors.splice(0, errors.length - DATA_LIMIT) : [];
+    const logsToArchive = visitorLog.length > DATA_LIMIT ? visitorLog.splice(0, visitorLog.length - DATA_LIMIT) : [];
+
+    if (callsToArchive.length > 0 || errorsToArchive.length > 0 || logsToArchive.length > 0) {
+      archive.calls = [...(archive.calls || []), ...callsToArchive];
+      archive.errors = [...(archive.errors || []), ...errorsToArchive];
+      archive.visitorLog = [...(archive.visitorLog || []), ...logsToArchive];
+      writeJsonAtomic(archivePath, archive);
+      console.log(`[Metrics] Archived ${callsToArchive.length} calls, ${errorsToArchive.length} errors, ${logsToArchive.length} visits to ${archivePath}`);
+      persist(); // Save trimmed data
+    }
+  } catch (e) {
+    console.error("[Metrics] Archive failed:", e);
+  }
+}
+
 function ensureLoaded() {
-  console.log("Loading metrics from:", dataPath);
   if (fs.existsSync(dataPath)) {
     const raw = fs.readFileSync(dataPath, "utf-8");
     let obj;
@@ -63,7 +101,6 @@ function ensureLoaded() {
     }
     modelUsage = typeof obj.modelUsage === 'object' && obj.modelUsage !== null ? obj.modelUsage : {};
   } else {
-    console.log("Metrics file not found, using defaults");
     // File doesn't exist, ensure defaults
     active = 0;
     maxActive = 0;
@@ -72,7 +109,6 @@ function ensureLoaded() {
     errors = [];
     visitorLog = [];
   }
-  console.log("Metrics loaded. VisitorLog length:", visitorLog?.length);
 }
 
 ensureLoaded();
@@ -80,15 +116,14 @@ ensureLoaded();
 export function logCall() {
   if (!calls) calls = [];
   calls.push(Date.now());
-  // Keep last 10000 calls
-  if (calls.length > 10000) calls.shift();
+  if (calls.length > ARCHIVE_THRESHOLD) archiveOldData();
   persist();
 }
 
 export function logError() {
   if (!errors) errors = [];
   errors.push(Date.now());
-  if (errors.length > 10000) errors.shift();
+  if (errors.length > ARCHIVE_THRESHOLD) archiveOldData();
   persist();
 }
 
@@ -101,8 +136,7 @@ export function logVisit(ip: string) {
   // Mask IP: 1.2.3.4 -> 1.2.3.***
   const maskedIP = ip.split('.').slice(0, 3).join('.') + '.***';
   visitorLog.push({ ts: Date.now(), ip: maskedIP });
-  // Keep last 10000 visits to avoid unlimited growth (reduced from 50000)
-  if (visitorLog.length > 10000) visitorLog.shift();
+  if (visitorLog.length > ARCHIVE_THRESHOLD) archiveOldData();
   persist();
 }
 
@@ -254,18 +288,22 @@ export function getSeries(range: Range) {
   return series;
 }
 
-// Middleware to track visits (excludes admin routes)
+// Middleware to track visits (excludes admin routes and static files)
 export function metricsMiddleware(req: any, res: any, next: any) {
-  // Skip admin routes
-  if (req.path.startsWith('/admin') || req.path.startsWith('/api/admin')) {
+  // Skip admin routes (middleware is mounted at /api, so path starts with /admin)
+  if (req.path.startsWith('/admin')) {
+    return next();
+  }
+  // Skip static file requests (uploads, assets)
+  if (req.path.startsWith('/uploads') || req.path.includes('.')) {
     return next();
   }
 
-  const ip = req.headers['x-forwarded-for'] || req.ip || req.connection.remoteAddress || 'unknown';
+  const rawIp = req.headers['x-forwarded-for'] || req.ip || req.connection?.remoteAddress || 'unknown';
   // Extract first IP if x-forwarded-for contains multiple
-  const cleanIP = typeof ip === 'string' ? ip.split(',')[0].trim() : ip;
+  const ip = Array.isArray(rawIp) ? rawIp[0] : rawIp;
+  const cleanIP = typeof ip === 'string' ? ip.split(',')[0].trim() : 'unknown';
 
-  console.log('[Metrics] Logging visit (IP masked for privacy) Path:', req.path);
   logVisit(cleanIP);
   next();
 }

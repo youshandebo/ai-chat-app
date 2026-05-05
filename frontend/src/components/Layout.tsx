@@ -11,14 +11,10 @@ import NewYearGreetings from "./NewYearGreetings";
 export default function Layout({ children }: { children: React.ReactNode }) {
   const loc = useLocation();
   const { settings, setTheme } = useChatStore();
-  const [overlayRunning, setOverlayRunning] = useState<boolean>(false);
-  const [key, setKey] = useState<string>("");
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [activeAnimation, setActiveAnimation] = useState<'none' | 'fireworks' | 'rain'>('none');
 
   React.useEffect(() => {
-    setKey(loc.pathname);
-    setOverlayRunning(true);
     setIsMobileMenuOpen(false); // Close mobile menu on route change
   }, [loc.pathname]);
 
@@ -32,6 +28,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const navLinks = [
     { path: "/", label: "首页" },
     { path: "/chat", label: "开始聊天" },
+    { path: "/image", label: "图像生成" },
     { path: "/changelog", label: "更新记录" },
     { path: "/sponsor", label: "赞助支持" },
     { path: "/store", label: "商城" },
@@ -52,9 +49,13 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     }, 6000);
   };
 
+  const isChat = loc.pathname === '/chat';
+  const isImageGen = loc.pathname === '/image';
+  const isFullHeight = isChat || isImageGen;
+
   return (
-    <div className="h-screen flex flex-col overflow-hidden relative">
-      <nav className="sticky top-0 z-30 bg-white/90 dark:bg-dark-card/90 backdrop-blur border-b border-gray-200 dark:border-dark-border">
+    <div className={`flex flex-col transition-colors duration-300 ${isFullHeight ? 'h-screen overflow-hidden bg-white dark:bg-dark-bg' : 'min-h-screen'}`}>
+      <nav className="sticky top-0 z-50 bg-white/80 dark:bg-dark-card/80 backdrop-blur-md border-b border-gray-200 dark:border-dark-border flex-shrink-0">
         <div className="max-w-6xl mx-auto h-16 flex items-center justify-between px-4 sm:px-6">
           <Link to="/" className="text-xl font-bold bg-gradient-to-r from-primary to-cyan-500 bg-clip-text text-transparent">
             聚合AI · 对话
@@ -147,7 +148,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         </AnimatePresence>
       </nav>
 
-      <main className="flex-1 relative overflow-hidden">
+      <main className={`relative ${isFullHeight ? 'flex-1 overflow-auto' : ''}`}>
         <AnimatePresence mode="wait">
           <motion.div
             key={loc.pathname}
@@ -155,21 +156,18 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -12 }}
             transition={{ duration: 0.2 }}
-            className={`h-full ${loc.pathname === '/admin' ? 'overflow-y-auto' : loc.pathname === '/chat' ? 'overflow-hidden' : 'overflow-y-auto'}`}
-            style={{ visibility: overlayRunning ? "hidden" : "visible" }}
+            className={isFullHeight ? 'h-full' : ''}
           >
             {children}
           </motion.div>
         </AnimatePresence>
-        <AnimatePresence mode="popLayout">
-          {overlayRunning && (
-            <motion.div key={key} className="absolute inset-0 z-40 bg-gray-50 dark:bg-dark-bg" initial={{ scaleX: 1, originX: 0 }} animate={{ scaleX: 0 }} exit={{ scaleX: 0 }} transition={{ duration: 0.25 }} onAnimationComplete={() => setOverlayRunning(false)} />
-          )}
-        </AnimatePresence>
       </main>
-      <footer className="h-12 border-t border-gray-200 dark:border-dark-border flex items-center justify-center text-sm bg-white dark:bg-dark-card text-gray-500 dark:text-gray-400">
-        © 2026 聚合AI · All Rights Reserved (v2.0测试版)
-      </footer>
+
+      {!isFullHeight && (
+        <footer className="h-12 border-t border-gray-200 dark:border-dark-border flex items-center justify-center text-sm bg-white dark:bg-dark-card text-gray-500 dark:text-gray-400">
+          © 2026 聚合AI · All Rights Reserved (v2.0测试版)
+        </footer>
+      )}
       {loc.pathname !== "/admin" && <AnnouncementModal onClose={handleAnnouncementClose} />}
 
       {activeAnimation === 'fireworks' && <Fireworks />}
