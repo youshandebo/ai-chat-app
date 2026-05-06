@@ -130,7 +130,7 @@ export default function Home() {
 
       {/* Features Section */}
       <section className="py-16 px-6 md:px-12 bg-gray-50/50 dark:bg-dark-bg/50 z-10">
-        <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+        <div className="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-8">
           {[
             { title: "⚡ 多模型切换", desc: "一键在 Gemini / ChatGPT 等模型间切换，适配不同场景。" },
             { title: "🧠 上下文记忆", desc: "本地保存会话与消息，持续对话不丢失，支持重命名与删除。" },
