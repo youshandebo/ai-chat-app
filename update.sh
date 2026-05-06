@@ -1,5 +1,4 @@
 #!/bin/bash
-set -e
 
 # ========== 配置 ==========
 APP_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -25,7 +24,11 @@ fi
 
 # ========== 拉取最新代码 ==========
 echo -e "${YELLOW}[1/4] 拉取最新代码...${NC}"
-git pull origin main
+cd "$APP_DIR"
+if ! git pull origin main; then
+    echo -e "${RED}  ✗ git pull 失败${NC}"
+    exit 1
+fi
 echo -e "${GREEN}  ✓ 代码已更新${NC}"
 echo ""
 
@@ -33,23 +36,35 @@ echo ""
 echo -e "${YELLOW}[2/4] 构建前端...${NC}"
 cd "$APP_DIR/frontend"
 rm -rf dist
-npm install --production=false
-npm run build
+if ! npm install --production=false; then
+    echo -e "${RED}  ✗ 前端依赖安装失败${NC}"
+    exit 1
+fi
+if ! npm run build; then
+    echo -e "${RED}  ✗ 前端构建失败${NC}"
+    exit 1
+fi
 echo -e "${GREEN}  ✓ 前端构建完成${NC}"
 echo ""
 
 # ========== 构建后端 ==========
 echo -e "${YELLOW}[3/4] 构建后端...${NC}"
 cd "$APP_DIR/backend"
-npm install
-npm run build
+if ! npm install; then
+    echo -e "${RED}  ✗ 后端依赖安装失败${NC}"
+    exit 1
+fi
+if ! npm run build; then
+    echo -e "${RED}  ✗ 后端构建失败${NC}"
+    exit 1
+fi
 echo -e "${GREEN}  ✓ 后端构建完成${NC}"
 echo ""
 
 # ========== 重启服务 ==========
 echo -e "${YELLOW}[4/4] 重启服务...${NC}"
 cd "$APP_DIR"
-pm2 delete all 2>/dev/null || true
+pm2 delete all 2>/dev/null
 pm2 start ecosystem.config.js
 pm2 save
 echo -e "${GREEN}  ✓ 服务已重启${NC}"
