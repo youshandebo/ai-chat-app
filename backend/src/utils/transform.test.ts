@@ -24,32 +24,32 @@ describe('transformMessages', () => {
     });
 
     it('defaults missing role to "user"', () => {
-      const result = transformMessages([{ content: 'test' }], 'openai');
+      const result = transformMessages([{ content: 'test' }], 'openai') as any;
       expect(result[0].role).toBe('user');
     });
 
     it('defaults missing content to empty string', () => {
-      const result = transformMessages([{ role: 'user' }], 'openai');
+      const result = transformMessages([{ role: 'user' }], 'openai') as any;
       expect(result[0].content).toBe('');
     });
   });
 
   describe('gemini format', () => {
     it('converts to contents with parts', () => {
-      const result = transformMessages(messages, 'gemini');
+      const result = transformMessages(messages, 'gemini') as any;
       expect(result.contents).toHaveLength(3);
       expect(result.contents[0]).toEqual({ role: 'user', parts: [{ text: 'Hello' }] });
       expect(result.contents[1]).toEqual({ role: 'model', parts: [{ text: 'Hi there' }] });
     });
 
     it('converts system role to user with prefix', () => {
-      const result = transformMessages([{ role: 'system', content: 'Be helpful' }], 'gemini');
+      const result = transformMessages([{ role: 'system', content: 'Be helpful' }], 'gemini') as any;
       expect(result.contents[0].role).toBe('user');
       expect(result.contents[0].parts[0].text).toBe('System: Be helpful');
     });
 
     it('prepends user message if first message is from model', () => {
-      const result = transformMessages([{ role: 'assistant', content: 'First' }], 'gemini');
+      const result = transformMessages([{ role: 'assistant', content: 'First' }], 'gemini') as any;
       expect(result.contents[0].role).toBe('user');
       expect(result.contents[0].parts[0].text).toBe('System instructions provided.');
       expect(result.contents[1].role).toBe('model');
