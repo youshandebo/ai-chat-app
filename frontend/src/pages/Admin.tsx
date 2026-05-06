@@ -33,6 +33,8 @@ import {
     Settings
 } from 'lucide-react';
 import { Reorder } from "framer-motion";
+import CustomSelect from "../components/CustomSelect";
+import { useChatStore } from "../store/useChatStore";
 
 interface MetricSeries {
     label: string;
@@ -237,6 +239,8 @@ const Admin = () => {
     };
 
 
+    const { settings } = useChatStore();
+
     const handleUpdateTheme = async (theme: string) => {
         try {
             const token = sessionStorage.getItem('admin_token');
@@ -251,16 +255,19 @@ const Admin = () => {
             if (res.ok) {
                 const data = await res.json();
                 setCurrentTheme(data.theme);
-                // Apply immediately
+                // Apply theme-newyear class
                 if (data.theme === 'new-year') {
                     document.documentElement.classList.add('theme-newyear');
                 } else {
                     document.documentElement.classList.remove('theme-newyear');
                 }
-                alert('主题已更新');
+                // Sync dark mode with store (preserve current dark/light preference)
+                const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+                const isDark = settings.theme === "dark" || (settings.theme === "auto" && prefersDark);
+                document.documentElement.classList.toggle("dark", isDark);
             }
         } catch (e) {
-            alert('更新失败');
+            console.error('Failed to update theme', e);
         }
     };
 
@@ -1108,16 +1115,16 @@ const Admin = () => {
                         </div>
 
                         {/* Theme Switcher */}
-                        <div className="flex items-center gap-2 bg-white dark:bg-dark-card border border-gray-200 dark:border-dark-border rounded-lg p-1.5">
+                        <div className="flex items-center gap-2">
                             <Palette className="w-4 h-4 text-gray-500" />
-                            <select
+                            <CustomSelect
                                 value={currentTheme}
-                                onChange={(e) => handleUpdateTheme(e.target.value)}
-                                className="bg-transparent text-sm border-none focus:ring-0 text-gray-700 dark:text-gray-300"
-                            >
-                                <option value="default">默认主题</option>
-                                <option value="new-year">新年主题</option>
-                            </select>
+                                onChange={handleUpdateTheme}
+                                options={[
+                                    { value: "default", label: "默认主题" },
+                                    { value: "new-year", label: "新年主题" },
+                                ]}
+                            />
                         </div>
 
                         <button
@@ -1246,16 +1253,16 @@ const Admin = () => {
                                         <h2 className="text-lg font-semibold text-gray-900 dark:text-white">数据趋势</h2>
                                     </div>
                                     <div className="flex items-center gap-2">
-                                    <select
+                                    <CustomSelect
                                         value={metricType}
-                                        onChange={e => setMetricType(e.target.value as keyof MetricSeries)}
-                                        className="px-3 py-1.5 border border-gray-300 dark:border-dark-border rounded-lg text-sm bg-white dark:bg-dark-bg text-gray-900 dark:text-white"
-                                    >
-                                        <option value="visits">访问量</option>
-                                        <option value="calls">API调用</option>
-                                        <option value="errors">错误数</option>
-                                        <option value="visitors">访客数</option>
-                                    </select>
+                                        onChange={(v) => setMetricType(v as keyof MetricSeries)}
+                                        options={[
+                                            { value: "visits", label: "访问量" },
+                                            { value: "calls", label: "API调用" },
+                                            { value: "errors", label: "错误数" },
+                                            { value: "visitors", label: "访客数" },
+                                        ]}
+                                    />
                                     <div className="flex gap-1 bg-gray-100 dark:bg-dark-bg p-1 rounded-lg">
                                         {(['24h', '7d', '30d', '365d'] as const).map(range => (
                                             <button
