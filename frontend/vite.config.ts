@@ -15,6 +15,18 @@ export default defineConfig({
       }
     }
   },
+  preview: {
+    port: 6556,
+    proxy: {
+      "/api": {
+        target: "http://localhost:6555",
+        changeOrigin: true,
+        ws: true,
+        timeout: 60000,
+        proxyTimeout: 60000
+      }
+    }
+  },
   build: {
     outDir: "dist"
   }

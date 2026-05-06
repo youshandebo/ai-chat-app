@@ -48,7 +48,10 @@ echo ""
 
 # ========== 重启服务 ==========
 echo -e "${YELLOW}[4/4] 重启服务...${NC}"
-pm2 restart all
+cd "$APP_DIR"
+pm2 delete all 2>/dev/null || true
+pm2 start ecosystem.config.js
+pm2 save
 echo -e "${GREEN}  ✓ 服务已重启${NC}"
 echo ""
 
