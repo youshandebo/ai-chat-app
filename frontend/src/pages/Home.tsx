@@ -121,9 +121,7 @@ export default function Home() {
           <Link to="/chat" className="px-6 py-3 rounded-full bg-primary text-white text-lg font-medium hover:bg-primary/90 dark:bg-primary dark:hover:bg-primary/80 transition-all hover:scale-105 shadow-lg hover:shadow-xl">
             立即开始聊天
           </Link>
-          <Link to="/image" className="px-6 py-3 rounded-full bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white text-lg font-medium hover:from-violet-700 hover:to-fuchsia-700 transition-all hover:scale-105 shadow-lg hover:shadow-xl">
-            🎨 AI 图像生成
-          </Link>
+
           <Link to="/changelog" className="px-6 py-3 rounded-full border border-gray-200 dark:border-dark-border bg-white/50 dark:bg-dark-card/50 backdrop-blur-sm text-gray-800 dark:text-white hover:bg-gray-100 dark:hover:bg-dark-card transition-all hover:scale-105">
             查看更新
           </Link>
@@ -137,7 +135,6 @@ export default function Home() {
             { title: "⚡ 多模型切换", desc: "一键在 Gemini / ChatGPT 等模型间切换，适配不同场景。" },
             { title: "🧠 上下文记忆", desc: "本地保存会话与消息，持续对话不丢失，支持重命名与删除。" },
             { title: "🔒 隐私优先", desc: "隐私优先：数据仅存于本地浏览器；API请求安全转发，无多余服务端存储。" },
-            { title: "🎨 AI 图像生成", desc: "支持 GPT Image 2 文生图、图生图，一键生成高质量 AI 图像。" },
           ].map((c, i) => (
             <motion.div
               key={c.title}
