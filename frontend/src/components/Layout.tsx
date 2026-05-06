@@ -28,7 +28,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const navLinks = [
     { path: "/", label: "首页" },
     { path: "/chat", label: "开始聊天" },
-    { path: "/image", label: "图像生成" },
+
     { path: "/changelog", label: "更新记录" },
     { path: "/sponsor", label: "赞助支持" },
     { path: "/store", label: "商城" },
@@ -50,8 +50,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   };
 
   const isChat = loc.pathname === '/chat';
-  const isImageGen = loc.pathname === '/image';
-  const isFullHeight = isChat || isImageGen;
+  const isFullHeight = isChat;
 
   return (
     <div className={`flex flex-col transition-colors duration-300 ${isFullHeight ? 'h-screen overflow-hidden bg-white dark:bg-dark-bg' : 'min-h-screen'}`}>

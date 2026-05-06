@@ -18,7 +18,7 @@ import productRouter from "./routes/product";
 import keysRouter from "./routes/keys";
 import settingsRouter from "./routes/settings";
 import setupRouter from "./routes/setup";
-import imageRouter from "./routes/image";
+
 import { metricsMiddleware } from "./services/metrics";
 
 dotenv.config();
@@ -161,7 +161,7 @@ app.use("/api", productRouter);
 app.use("/api", keysRouter);
 app.use("/api", settingsRouter);
 app.use("/api", setupRouter);
-app.use("/api", imageRouter);
+
 
 // Global error handler - must be last
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
