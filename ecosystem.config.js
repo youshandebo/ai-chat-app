@@ -11,8 +11,8 @@ module.exports = {
     {
       name: "ai-chat-frontend",
       cwd: "./frontend",
-      script: "npx",
-      args: "vite preview",
+      script: "node_modules/.bin/vite",
+      args: "preview",
       env: {
         NODE_ENV: "production"
       }
