@@ -3,6 +3,24 @@ import path from "path";
 import { writeJsonAtomic } from "../utils/fileUtils";
 import { randomUUID } from "crypto";
 
+function sanitizeText(text: string): string {
+    // Strip HTML tags from plain text fields (title, author)
+    return text.replace(/<[^>]*>/g, '').trim();
+}
+
+function sanitizeContent(content: string): string {
+    // Remove dangerous patterns from Markdown content
+    // Block <script>, <iframe>, <object>, <embed>, <form> tags and event handlers
+    return content
+        .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+        .replace(/<iframe[^>]*>[\s\S]*?<\/iframe>/gi, '')
+        .replace(/<object[^>]*>[\s\S]*?<\/object>/gi, '')
+        .replace(/<embed[^>]*>/gi, '')
+        .replace(/<form[^>]*>[\s\S]*?<\/form>/gi, '')
+        .replace(/\son\w+\s*=\s*["'][^"']*["']/gi, '')
+        .replace(/javascript\s*:/gi, '');
+}
+
 const dataPath = path.resolve(process.cwd(), "data/articles.json");
 
 export interface Article {
@@ -96,7 +114,11 @@ export function createArticle(data: Omit<Article, "id" | "createdAt" | "updatedA
     ensureLoaded();
     const article: Article = {
         id: randomUUID(),
-        ...data,
+        title: sanitizeText(data.title),
+        content: sanitizeContent(data.content),
+        author: sanitizeText(data.author),
+        published: data.published,
+        tags: data.tags,
         createdAt: Date.now(),
         updatedAt: Date.now(),
     };
@@ -111,10 +133,16 @@ export function updateArticle(id: string, data: Partial<Omit<Article, "id" | "cr
     const index = cached.articles.findIndex(a => a.id === id);
     if (index === -1) return null;
 
+    const sanitized: any = { updatedAt: Date.now() };
+    if (data.title !== undefined) sanitized.title = sanitizeText(data.title);
+    if (data.content !== undefined) sanitized.content = sanitizeContent(data.content);
+    if (data.author !== undefined) sanitized.author = sanitizeText(data.author);
+    if (data.published !== undefined) sanitized.published = data.published;
+    if (data.tags !== undefined) sanitized.tags = data.tags;
+
     cached.articles[index] = {
         ...cached.articles[index],
-        ...data,
-        updatedAt: Date.now(),
+        ...sanitized,
     };
     persist();
     return cached.articles[index];

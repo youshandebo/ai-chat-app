@@ -1,12 +1,22 @@
 import express from 'express';
 import fs from 'fs';
 import path from 'path';
+import rateLimit from 'express-rate-limit';
 import { writeJsonAtomic } from '../utils/fileUtils';
 import { requireAdmin } from '../middleware/auth';
 
 const router = express.Router();
 
 const votesPath = path.resolve(process.cwd(), 'data/votes.json');
+
+// Rate limit: 30 votes per minute per IP
+const voteLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    max: 30,
+    message: { error: "投票过于频繁，请稍后再试" },
+    standardHeaders: true,
+    legacyHeaders: false,
+});
 
 interface Vote {
     messageId: string;
@@ -32,7 +42,7 @@ function ensureVotesFile() {
 const MAX_VOTES = 10000;
 
 // Store vote
-router.post('/vote', (req, res) => {
+router.post('/vote', voteLimiter, (req, res) => {
     try {
         const { messageId, vote, timestamp } = req.body;
 

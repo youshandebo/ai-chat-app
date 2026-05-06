@@ -19,10 +19,11 @@ export const requireAdmin = (req: express.Request, res: express.Response, next: 
 
     // Check if it's a session token (from login endpoint)
     if (isSessionToken(token)) {
-        if (validateSession(token)) {
+        const ip = (req.headers['x-forwarded-for'] as string || req.socket.remoteAddress || '').split(',')[0].trim();
+        if (validateSession(token, ip)) {
             return next();
         }
-        return res.status(401).json({ error: "会话已过期，请重新登录" });
+        return res.status(401).json({ error: "会话已过期或IP不匹配，请重新登录" });
     }
 
     // Legacy: direct password/token comparison (constant-time)

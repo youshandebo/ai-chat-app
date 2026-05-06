@@ -30,8 +30,8 @@ router.post("/chat/:modelId", async (req, res) => {
     return res.status(400).json({ error: "Missing identity headers" });
   }
 
-  // Get IP (Handle proxy)
-  const ip = (req.headers['x-forwarded-for'] as string || req.socket.remoteAddress || "").split(',')[0].trim();
+  // Get IP (respect trust proxy setting)
+  const ip = req.ip || req.socket.remoteAddress || "";
 
   // Get activation key (optional)
   const activationKey = (req.headers['x-activation-key'] as string)?.trim().toUpperCase();
@@ -43,7 +43,7 @@ router.post("/chat/:modelId", async (req, res) => {
 
   const creditCost = model.creditCost !== undefined ? Number(model.creditCost) : 1;
 
-  // Check Limit
+  // Atomic reserve: increment first, check after (prevents race conditions)
   const { allowed, remaining, role, showWarning } = UsageService.checkLimit(fingerprint, ip, creditCost);
 
   // Set Usage Headers
@@ -55,6 +55,7 @@ router.post("/chat/:modelId", async (req, res) => {
 
   // Track which method we use for counting
   let useKeyCredits = false;
+  let usageReserved = false;
 
   if (!allowed) {
     // Daily limit exceeded - check if user has activation key credits
@@ -70,6 +71,13 @@ router.post("/chat/:modelId", async (req, res) => {
     } else {
       return res.status(429).json({ error: `已达到今日对话上限 (${role === 'restricted' ? 10 : 25}条)` });
     }
+  } else {
+    // Reserve usage atomically (increment + verify)
+    const reserved = UsageService.reserve(fingerprint, creditCost);
+    if (!reserved.allowed) {
+      return res.status(429).json({ error: `已达到今日对话上限` });
+    }
+    usageReserved = true;
   }
 
   // Also set key balance header if key is provided (even if not needed)
@@ -129,7 +137,8 @@ router.post("/chat/:modelId", async (req, res) => {
         } else {
           console.log(`[Chat] Deducted ${creditCost} credit(s) from key ${activationKey.slice(0, 4)}***, remaining: ${result.remaining}`);
         }
-      } else {
+      } else if (!usageReserved) {
+        // Only increment if not already reserved atomically
         UsageService.increment(fingerprint, creditCost);
       }
       usageIncremented = true;
@@ -158,24 +167,27 @@ router.post("/chat/:modelId", async (req, res) => {
         }
       }, 15000);
 
-      await callModelAPI(useModel, transformed, useApiKey, (chunk) => {
-        // Skip writing if client already disconnected
-        if (clientDisconnected) return;
+      try {
+        await callModelAPI(useModel, transformed, useApiKey, (chunk) => {
+          // Skip writing if client already disconnected
+          if (clientDisconnected) return;
 
-        // Count usage on first successful chunk
-        trackUsage();
+          // Count usage on first successful chunk
+          trackUsage();
 
-        chunkCount++;
-        res.write(`data: ${JSON.stringify(chunk)}\n\n`);
-        (res as any).flush?.(); // Ensure chunks are sent immediately
-      }, abortController.signal, webSearch);
+          chunkCount++;
+          res.write(`data: ${JSON.stringify(chunk)}\n\n`);
+          (res as any).flush?.(); // Ensure chunks are sent immediately
+        }, abortController.signal, webSearch);
 
-      clearInterval(heartbeatInterval);
-      res.write("data: [DONE]\n\n");
-      (res as any).flush?.();
-      res.end();
-      // Record successful API call
-      logCall();
+        res.write("data: [DONE]\n\n");
+        (res as any).flush?.();
+        res.end();
+        // Record successful API call
+        logCall();
+      } finally {
+        clearInterval(heartbeatInterval);
+      }
     } else {
       const result = await callModelAPI(useModel, transformed, useApiKey, undefined, abortController.signal, webSearch);
 

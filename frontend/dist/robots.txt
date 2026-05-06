@@ -1,9 +1,0 @@
-User-agent: *
-Allow: /
-Allow: /chat
-Allow: /articles
-Allow: /changelog
-Allow: /sponsor
-Disallow: /admin
-
-Sitemap: https://youshandebo.xx.kg/sitemap.xml

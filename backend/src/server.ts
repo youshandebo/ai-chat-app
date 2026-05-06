@@ -113,7 +113,9 @@ app.use(
         return callback(new Error("CORS not configured"));
       }
 
-      const devOrigins = ["http://localhost:5173", "http://localhost:6556"];
+      const devOrigins = process.env.NODE_ENV !== 'production'
+        ? ["http://localhost:5173", "http://localhost:6556"]
+        : [];
 
       const isAllowed = allowedOrigins.includes(origin) || devOrigins.includes(origin);
 

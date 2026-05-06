@@ -53,7 +53,8 @@ router.post("/reload-models", requireAdmin, (req, res) => {
     loadModels();
     res.json({ success: true, message: "模型配置已重载" });
   } catch (e: any) {
-    res.status(500).json({ error: e.message });
+    console.error("[Admin] reload-models error:", e);
+    res.status(500).json({ error: "模型配置重载失败" });
   }
 });
 

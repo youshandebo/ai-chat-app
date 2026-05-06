@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
+import SEO from '../components/SEO';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkBreaks from 'remark-breaks';
@@ -149,7 +150,20 @@ const Admin = () => {
     useEffect(() => {
         const token = sessionStorage.getItem('admin_token');
         if (token) {
-            setIsAuthenticated(true);
+            // Verify token with server before trusting it
+            fetch('/api/admin/health', { headers: { Authorization: `Bearer ${token}` } })
+                .then(r => {
+                    if (r.ok) {
+                        setIsAuthenticated(true);
+                    } else {
+                        sessionStorage.removeItem('admin_token');
+                        setLoading(false);
+                    }
+                })
+                .catch(() => {
+                    sessionStorage.removeItem('admin_token');
+                    setLoading(false);
+                });
         } else {
             setLoading(false);
         }
@@ -1025,6 +1039,7 @@ const Admin = () => {
     // --- Main Admin Interface ---
     return (
         <div className="min-h-screen bg-gray-50 dark:bg-dark-bg pb-8">
+            <SEO title="管理面板" noindex />
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
                 {/* Header */}
                 <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">

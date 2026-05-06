@@ -2,12 +2,17 @@ import express from "express";
 import https from "https";
 import http from "http";
 import crypto from "crypto";
+import dns from "dns";
+import { promisify } from "util";
 import { getModelConfig } from "../config/models";
 import { logModelUsage, logCall, logError } from "../services/metrics";
 import { UsageService } from "../services/usageService";
 import { KeyService } from "../services/keyService";
 import { logger } from "../utils/logger";
 import multer from "multer";
+
+const dnsLookup = promisify(dns.lookup);
+const dnsResolve = promisify(dns.resolve4);
 
 const router = express.Router();
 
@@ -18,41 +23,74 @@ const upload = multer({
 });
 
 /**
- * Helper: validate URL to prevent SSRF attacks
- * Blocks private/internal IPs and non-HTTP protocols
+ * Helper: check if an IP address is private/internal
  */
-function isSafeExternalUrl(urlStr: string): boolean {
+function isPrivateIp(ip: string): boolean {
+  const ipLower = ip.toLowerCase();
+  if (
+    ipLower === '127.0.0.1' ||
+    ipLower === '::1' ||
+    ipLower === '0.0.0.0' ||
+    ipLower.startsWith('10.') ||
+    ipLower.startsWith('192.168.') ||
+    ipLower.startsWith('169.254.')
+  ) return true;
+  if (ipLower.startsWith('172.')) {
+    const parts = ipLower.split('.').map(Number);
+    if (parts.length >= 2 && parts[1] >= 16 && parts[1] <= 31) return true;
+  }
+  // IPv6 mapped private IPs
+  if (ipLower.startsWith('::ffff:')) {
+    const inner = ipLower.slice(7);
+    return isPrivateIp(inner);
+  }
+  // Loopback
+  if (ipLower === '::' || ipLower === '0:0:0:0:0:0:0:1') return true;
+  return false;
+}
+
+/**
+ * Helper: validate URL to prevent SSRF attacks
+ * Blocks private/internal IPs, non-HTTP protocols, and verifies DNS resolution
+ */
+async function isSafeExternalUrl(urlStr: string): Promise<boolean> {
   try {
     const url = new URL(urlStr);
     if (!['http:', 'https:'].includes(url.protocol)) return false;
     const hostname = url.hostname.toLowerCase();
 
-    // Block private/internal IPs
+    // Block obvious private hostnames
     if (
       hostname === 'localhost' ||
       hostname === '0.0.0.0' ||
       hostname === '::1' ||
       hostname === '[::1]' ||
-      hostname.startsWith('127.') ||
-      hostname.startsWith('10.') ||
-      hostname.startsWith('192.168.') ||
-      hostname.startsWith('169.254.') ||
       hostname.endsWith('.local') ||
       hostname.endsWith('.internal')
     ) {
       return false;
     }
 
-    // Block 172.16.0.0 - 172.31.255.255
-    if (hostname.startsWith('172.')) {
-      const parts = hostname.split('.').map(Number);
-      if (parts.length >= 2 && parts[1] >= 16 && parts[1] <= 31) return false;
+    // Block private IP literals in hostname
+    if (isPrivateIp(hostname)) {
+      return false;
     }
 
-    // Block IPv6 mapped private IPs
-    if (hostname.startsWith('::ffff:')) {
-      const inner = hostname.slice(7);
-      if (inner.startsWith('127.') || inner.startsWith('10.') || inner.startsWith('192.168.') || inner.startsWith('172.')) {
+    // DNS resolution check: verify all resolved IPs are public
+    // This prevents DNS rebinding attacks
+    try {
+      const addresses = await dnsResolve(hostname);
+      for (const addr of addresses) {
+        if (isPrivateIp(addr)) {
+          return false;
+        }
+      }
+    } catch {
+      // If DNS fails, fall back to basic lookup
+      try {
+        const result = await dnsLookup(hostname);
+        if (isPrivateIp(result.address)) return false;
+      } catch {
         return false;
       }
     }
@@ -218,13 +256,7 @@ router.post("/image/generate", async (req, res) => {
     return res.status(400).json({ error: "Missing identity headers" });
   }
 
-  const ip = (
-    (req.headers["x-forwarded-for"] as string) ||
-    req.socket.remoteAddress ||
-    ""
-  )
-    .split(",")[0]
-    .trim();
+  const ip = req.ip || req.socket.remoteAddress || "";
   const activationKey = (req.headers["x-activation-key"] as string)
     ?.trim()
     .toUpperCase();
@@ -249,7 +281,7 @@ router.post("/image/generate", async (req, res) => {
   if (!prompt) return res.status(400).json({ error: "缺少 prompt 参数" });
 
   // SSRF protection: validate custom API base URL
-  if (isCustomApi && !isSafeExternalUrl(custom_api_base)) {
+  if (isCustomApi && !await isSafeExternalUrl(custom_api_base)) {
     return res.status(400).json({ error: "自定义API地址不合法" });
   }
 
@@ -415,7 +447,7 @@ router.post(
       return res.status(400).json({ error: "请上传至少一张图片" });
 
     // SSRF protection: validate custom API base URL
-    if (isCustomApi && !isSafeExternalUrl(custom_api_base)) {
+    if (isCustomApi && !await isSafeExternalUrl(custom_api_base)) {
       return res.status(400).json({ error: "自定义API地址不合法" });
     }
 

@@ -89,7 +89,19 @@ export default function Home() {
   return (
     <div className="flex flex-col relative min-h-screen">
       <div className="absolute inset-0 bg-white dark:bg-dark-bg transition-colors duration-300 -z-20" />
-      <SEO />
+      <SEO jsonLd={{
+          "@context": "https://schema.org",
+          "@type": "WebSite",
+          "name": "聚合AI",
+          "url": "https://youshandebo.xx.kg",
+          "description": "免费使用 Gemini, ChatGPT 等主流大模型，一键切换多种AI模型，本地保存对话记录，隐私优先。",
+          "inLanguage": "zh-CN",
+          "potentialAction": {
+              "@type": "SearchAction",
+              "target": "https://youshandebo.xx.kg/chat?q={search_term_string}",
+              "query-input": "required name=search_term_string"
+          }
+      }} />
       <InteractiveGrid className="text-gray-400/40 dark:text-gray-500/30" />
 
       {/* Hero Section */}

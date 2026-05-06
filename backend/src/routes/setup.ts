@@ -27,7 +27,15 @@ router.get('/setup/status', (req, res) => {
 
 router.post('/setup/init', (req, res) => {
     const currentToken = process.env.ADMIN_TOKEN || '';
-    if (currentToken && currentToken !== 'your_secure_token_here') {
+    // Check both process.env and actual .env file to prevent race conditions
+    const envPath = require('path').resolve(process.cwd(), '.env');
+    let fileToken = '';
+    if (require('fs').existsSync(envPath)) {
+        const match = require('fs').readFileSync(envPath, 'utf-8').match(/ADMIN_TOKEN=(.*)/);
+        fileToken = match?.[1]?.trim() || '';
+    }
+    const effectiveToken = currentToken || fileToken;
+    if (effectiveToken && effectiveToken !== 'your_secure_token_here') {
         return res.status(403).json({ error: '管理员密码已设置，无法重新初始化' });
     }
 

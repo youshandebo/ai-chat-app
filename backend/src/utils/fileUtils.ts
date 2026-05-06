@@ -8,31 +8,39 @@ import path from 'path';
  * 2. Flush buffers (fsync).
  * 3. Rename temporary file to target file (atomic operation on POSIX).
  */
+function renameWithRetry(src: string, dest: string, retries = 3, delayMs = 50) {
+    for (let i = 0; i < retries; i++) {
+        try {
+            fs.renameSync(src, dest);
+            return;
+        } catch (err: any) {
+            if ((err.code === 'EBUSY' || err.code === 'EPERM') && i < retries - 1) {
+                // Windows file locking: wait and retry
+                const wait = delayMs * Math.pow(2, i);
+                const end = Date.now() + wait;
+                while (Date.now() < end) { /* busy wait */ }
+            } else {
+                throw err;
+            }
+        }
+    }
+}
+
 export function writeJsonAtomic(filePath: string, data: any) {
     const dir = path.dirname(filePath);
     const tempPath = path.join(dir, `.${path.basename(filePath)}.tmp-${Date.now()}-${Math.random().toString(36).slice(2)}`);
 
     try {
-        // Ensure directory exists
         if (!fs.existsSync(dir)) {
             fs.mkdirSync(dir, { recursive: true });
         }
 
         const content = JSON.stringify(data, null, 2);
-
-        // 1. Write to temporary file
         fs.writeFileSync(tempPath, content, 'utf-8');
-
-        // 2. Fsync to ensure data is on disk (not strictly possible with writeFileSync provided fd, but separate open/fsync is complex for simple json. 
-        // writeFileSync usually relies on OS buffers. For stricter safety we can open, write, fsync, close.
-        // For this implementation, we rely on writeFileSync + rename, which is a major improvement over direct overwrite.)
-
-        // 3. Rename temp file to target file
-        fs.renameSync(tempPath, filePath);
+        renameWithRetry(tempPath, filePath);
 
     } catch (err) {
         console.error(`[FileUtils] Atomic write failed for ${filePath}:`, err);
-        // Attempt to clean up temp file
         try {
             if (fs.existsSync(tempPath)) {
                 fs.unlinkSync(tempPath);
@@ -40,6 +48,6 @@ export function writeJsonAtomic(filePath: string, data: any) {
         } catch (cleanupErr) {
             console.error(`[FileUtils] Failed to clean up temp file ${tempPath}:`, cleanupErr);
         }
-        throw err; // Re-throw to caller
+        throw err;
     }
 }

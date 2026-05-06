@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { getFingerprint } from "../utils/fingerprint";
 import { getStoredKeys } from "../utils/keyStorage";
+import SEO from "../components/SEO";
 import {
   Image as ImageIcon,
   Upload,
@@ -170,7 +171,7 @@ export default function ImageGen() {
     try {
       const fingerprint = await getFingerprint();
       const storedKeys = getStoredKeys();
-      const lastKey = storedKeys.pop();
+      const lastKey = storedKeys.length > 0 ? storedKeys[storedKeys.length - 1] : undefined;
 
       // @ts-ignore
       const apiBase = import.meta.env.VITE_BACKEND_BASE || "";
@@ -292,6 +293,7 @@ export default function ImageGen() {
 
   return (
     <div className="min-h-full bg-gradient-to-br from-slate-50 via-purple-50/30 to-blue-50/20 dark:from-dark-bg dark:via-dark-bg dark:to-dark-bg">
+      <SEO title="AI 图像生成" description="使用AI模型生成高质量图像，支持文生图、图生图，多种尺寸和质量选项。" />
       {/* Header */}
       <div className="sticky top-0 z-30 backdrop-blur-xl bg-white/70 dark:bg-dark-card/70 border-b border-gray-200/50 dark:border-dark-border/50">
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">

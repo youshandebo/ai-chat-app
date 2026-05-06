@@ -50,7 +50,7 @@ curl -fsSL https://raw.githubusercontent.com/youshandebo/ai-chat-app/main/script
 ```env
 PORT=6555                          # 后端监听端口
 CORS_ORIGIN=*                      # CORS 设置
-ADMIN_TOKEN=fnx081013fnx           # 管理面板密钥
+ADMIN_TOKEN=your_secure_token_here           # 管理面板密钥
 RATE_LIMIT_PER_MINUTE=120          # 限流
 NODE_ENV=production                # 环境
 GEMINI_API_KEY=sk-...              # Gemini API Key
@@ -61,7 +61,7 @@ DEEPSEEK_API_KEY=sk-...            # DeepSeek API Key
 
 ```env
 VITE_BACKEND_BASE=http://localhost:6555
-VITE_ADMIN_TOKEN=fnx081013fnx
+VITE_ADMIN_TOKEN=your_secure_token_here
 ```
 
 ---
@@ -119,7 +119,7 @@ tail -f /var/log/nginx/yourshandebo.xx.kg-error.log
 # API 测试
 curl http://localhost:6555/api/models
 curl http://localhost:6555/api/admin/health \
-  -H "Authorization: Bearer fnx081013fnx"
+  -H "Authorization: Bearer your_secure_token_here"
 ```
 
 ---
@@ -165,7 +165,7 @@ sudo bash scripts/setup-nginx.sh yourshandebo.xx.kg 6555 6556 6558
 
 **URL**: `http://yourshandebo.xx.kg:6557/admin` 或 `http://localhost:6557/admin`
 
-**Token**: `fnx081013fnx`
+**Token**: `your_secure_token_here`
 
 ### 功能
 

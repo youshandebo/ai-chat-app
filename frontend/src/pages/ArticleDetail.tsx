@@ -97,6 +97,28 @@ export default function ArticleDetail() {
                 keywords={article.tags?.join(', ') + ', 聚合AI, AI文章'}
                 type="article"
                 url={`https://youshandebo.xx.kg/articles/${article.id}`}
+                jsonLd={{
+                    "@context": "https://schema.org",
+                    "@type": "Article",
+                    "headline": article.title,
+                    "description": description,
+                    "author": {
+                        "@type": "Person",
+                        "name": article.author
+                    },
+                    "datePublished": new Date(article.createdAt).toISOString(),
+                    "dateModified": new Date(article.updatedAt).toISOString(),
+                    "mainEntityOfPage": {
+                        "@type": "WebPage",
+                        "@id": `https://youshandebo.xx.kg/articles/${article.id}`
+                    },
+                    "publisher": {
+                        "@type": "Organization",
+                        "name": "聚合AI",
+                        "url": "https://youshandebo.xx.kg"
+                    },
+                    "keywords": article.tags?.join(', ')
+                }}
             />
 
             {/* Sticky Navigation Bar */}

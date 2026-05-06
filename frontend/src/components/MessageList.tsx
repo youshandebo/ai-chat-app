@@ -22,9 +22,21 @@ export default function MessageList({ onEditMessage }: MessageListProps) {
   }, [chats, currentChatId]);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const isNearBottomRef = useRef(true);
+
+  // Track if user is near the bottom
+  const handleScroll = () => {
+    const el = scrollContainerRef.current;
+    if (!el) return;
+    isNearBottomRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 150;
+  };
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    // Only auto-scroll if user is already near the bottom
+    if (isNearBottomRef.current) {
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
   }, [messages]);
 
   const handleCopy = (text: string) => {
@@ -65,7 +77,7 @@ export default function MessageList({ onEditMessage }: MessageListProps) {
   const isLongContent = (content: string) => content.length > 800;
 
   return (
-    <div className="py-4 px-6 bg-white dark:bg-dark-card min-h-full">
+    <div ref={scrollContainerRef} onScroll={handleScroll} className="py-4 px-6 bg-white dark:bg-dark-card min-h-full overflow-y-auto">
       {messages.map((m, idx) => {
         const c = String(m.content || "");
         if (m.role === "assistant" && c.trim() === "") return null;

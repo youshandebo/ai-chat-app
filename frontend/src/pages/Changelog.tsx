@@ -1,8 +1,10 @@
 import { motion } from "framer-motion";
+import SEO from "../components/SEO";
 
 export default function Changelog() {
   return (
     <div className="min-h-screen w-full bg-gray-50 dark:bg-dark-bg transition-colors duration-300">
+      <SEO title="更新日志" description="查看聚合AI平台的最新功能更新、模型升级和系统改进记录。" />
       <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="relative z-10 max-w-2xl mx-auto p-6">
         <motion.h2 initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="text-2xl font-bold mb-4 text-gray-900 dark:text-white">更新公告</motion.h2>
 

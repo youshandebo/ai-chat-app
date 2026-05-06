@@ -54,13 +54,17 @@ export function createSession(ip: string): string {
 }
 
 /**
- * Validate a session token. Returns true if valid and not expired.
+ * Validate a session token. Returns true if valid, not expired, and IP matches.
  */
-export function validateSession(token: string): boolean {
+export function validateSession(token: string, ip?: string): boolean {
     const session = sessions.get(token);
     if (!session) return false;
     if (Date.now() - session.createdAt > SESSION_TTL) {
         sessions.delete(token);
+        return false;
+    }
+    // Bind session to IP to prevent token theft abuse
+    if (ip && session.ip && session.ip !== ip) {
         return false;
     }
     return true;

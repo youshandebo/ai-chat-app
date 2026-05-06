@@ -22,11 +22,20 @@ let keys: KeysData = {
 
 const INITIAL_CREDITS = 25;
 
+// TTL cache
+let lastLoadTime = 0;
+const CACHE_TTL_MS = 5000;
+
 function ensureLoaded() {
+    const now = Date.now();
+    if (now - lastLoadTime < CACHE_TTL_MS && (keys.unused.length > 0 || Object.keys(keys.activated).length > 0)) {
+        return;
+    }
     if (fs.existsSync(dataPath)) {
         try {
             const raw = fs.readFileSync(dataPath, "utf-8");
             keys = JSON.parse(raw);
+            lastLoadTime = now;
         } catch (e) {
             console.error("Failed to parse keys.json", e);
             keys = { unused: [], activated: {} };

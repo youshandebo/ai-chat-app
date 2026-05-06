@@ -1,5 +1,6 @@
 import fs from "fs";
 import path from "path";
+import { writeJsonAtomic } from "../utils/fileUtils";
 
 let cached: any = null;
 
@@ -37,14 +38,12 @@ export function saveModels(models: any[]) {
   ];
 
   for (const p of paths) {
-    // We only write to the one that exists or the first one if none exist
     try {
       if (!fs.existsSync(path.dirname(p))) {
         fs.mkdirSync(path.dirname(p), { recursive: true });
       }
-      fs.writeFileSync(p, JSON.stringify({ models }, null, 4), "utf-8");
-      cached = { models }; // Update cache
-      console.log("Models config saved to:", p);
+      writeJsonAtomic(p, { models });
+      cached = { models };
       return;
     } catch (e) {
       console.error("Failed to save models config at:", p, e);

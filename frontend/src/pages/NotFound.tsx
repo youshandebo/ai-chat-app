@@ -1,15 +1,12 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Helmet } from 'react-helmet-async';
 import { Home } from 'lucide-react';
+import SEO from '../components/SEO';
 
 export default function NotFound() {
     return (
         <div className="min-h-screen bg-gray-50 dark:bg-dark-bg flex flex-col items-center justify-center p-4">
-            <Helmet>
-                <title>404 Not Found | 聚合AI</title>
-                <meta name="robots" content="noindex" />
-            </Helmet>
+            <SEO title="404 页面未找到" noindex />
 
             <h1 className="text-6xl font-bold text-gray-900 dark:text-white mb-4">404</h1>
             <p className="text-xl text-gray-600 dark:text-gray-400 mb-8">

@@ -21,6 +21,9 @@ router.get("/rss", (req, res) => {
     <atom:link href="${feedUrl}" rel="self" type="application/rss+xml" />
 `;
 
+        // Escape ]]> to prevent CDATA breakout
+        const escapeCdata = (s: string) => s.replace(/\]\]>/g, ']]]]><![CDATA[>');
+
         articles.forEach(article => {
             const link = `${siteUrl}/articles/${article.id}`;
             const date = new Date(article.createdAt).toUTCString();
@@ -29,12 +32,12 @@ router.get("/rss", (req, res) => {
 
             xml += `
     <item>
-      <title><![CDATA[${article.title}]]></title>
+      <title><![CDATA[${escapeCdata(article.title)}]]></title>
       <link>${link}</link>
       <guid isPermaLink="true">${link}</guid>
       <pubDate>${date}</pubDate>
-      <description><![CDATA[${desc}]]></description>
-      <author><![CDATA[${article.author}]]></author>
+      <description><![CDATA[${escapeCdata(desc)}]]></description>
+      <author><![CDATA[${escapeCdata(article.author)}]]></author>
     </item>`;
         });
 

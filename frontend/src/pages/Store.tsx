@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Helmet } from 'react-helmet-async';
 import { motion } from 'framer-motion';
 import { ShoppingBag, ExternalLink, Loader2, Package } from 'lucide-react';
+import SEO from '../components/SEO';
 
 interface Product {
     id: string;
@@ -49,10 +49,7 @@ export default function Store() {
 
     return (
         <>
-            <Helmet>
-                <title>商城 - 聚合AI</title>
-                <meta name="description" content="聚合AI商城，选购优质商品和服务" />
-            </Helmet>
+            <SEO title="商城" description="聚合AI商城，选购优质商品和服务" />
 
             <div className="min-h-full bg-gradient-to-br from-gray-50 via-white to-purple-50/30 dark:from-dark-bg dark:via-dark-bg dark:to-purple-900/10 py-12 px-4">
                 <div className="max-w-6xl mx-auto">

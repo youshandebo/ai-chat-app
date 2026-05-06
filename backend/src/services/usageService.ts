@@ -24,18 +24,24 @@ let usage: UsageData = {
     ipHistory: {}
 };
 
+// TTL cache: avoid re-reading disk on every API call
+let lastLoadTime = 0;
+const CACHE_TTL_MS = 5000; // 5 seconds
+
 function ensureLoaded() {
+    const now = Date.now();
+    if (now - lastLoadTime < CACHE_TTL_MS && Object.keys(usage.fingerprints).length > 0) {
+        return; // Cache still fresh
+    }
+
     if (fs.existsSync(dataPath)) {
         try {
             const raw = fs.readFileSync(dataPath, "utf-8");
             const data = JSON.parse(raw);
-            // Basic migration/validation check
             if (data.date && (data.fingerprints || data.counters)) {
                 if (data.fingerprints) {
                     usage = data;
                 } else {
-                    // Migrate old format (counters only) -> new format
-                    // Treat all old counters as 'normal'
                     usage.date = data.date;
                     usage.fingerprints = {};
                     usage.ipHistory = {};
@@ -46,8 +52,9 @@ function ensureLoaded() {
                     }
                 }
             }
+            lastLoadTime = now;
         } catch (e) {
-            console.error("Failed to parse usages.json", e);
+            console.error("Failed to parse usage.json", e);
         }
     }
 
@@ -56,11 +63,6 @@ function ensureLoaded() {
     if (usage.date !== today) {
         console.log(`[UsageService] Date changed from ${usage.date} to ${today}. Resetting counts.`);
         usage.date = today;
-        // Keep roles and history, just reset counts? 
-        // Logic: Roles and IP history should persist? 
-        // The requirement is "mark secondary user... limit 10". If we reset history, they become new users next day?
-        // User said: "Detected multi-user... you are marked". Implies persistence.
-        // So we ONLY reset counts.
         for (const fp in usage.fingerprints) {
             usage.fingerprints[fp].count = 0;
         }
@@ -71,6 +73,7 @@ function ensureLoaded() {
 function persist() {
     try {
         writeJsonAtomic(dataPath, usage);
+        lastLoadTime = Date.now(); // Update cache timestamp
     } catch (e) {
         console.error("Failed to persist usage", e);
     }
@@ -90,44 +93,24 @@ export function checkLimit(fingerprint: string, ip: string, amount: number = 1):
     let fpData = usage.fingerprints[fingerprint];
     let showWarning = false;
 
-    // New User Registration Logic
     if (!fpData) {
         let role: UserRole = 'normal';
-
-        // Check IP History
         const history = usage.ipHistory[ip] || [];
         if (history.length > 0) {
-            // This IP has seen other fingerprints -> Suspicious
-            // However, confirm it's not the SAME fingerprint (shouldn't be, since !fpData)
             role = 'restricted';
             showWarning = true;
             console.log(`[UsageService] New fingerprint ${fingerprint} on used IP ${ip}. Marking as restricted.`);
         } else {
-            // First time seeing this IP (or at least first FP for this IP)
             console.log(`[UsageService] New fingerprint ${fingerprint} on new IP ${ip}. Marking as normal.`);
         }
 
-        fpData = {
-            count: 0,
-            role,
-            firstIp: ip
-        };
+        fpData = { count: 0, role, firstIp: ip };
         usage.fingerprints[fingerprint] = fpData;
-
-        // Update History
         if (!usage.ipHistory[ip]) usage.ipHistory[ip] = [];
         usage.ipHistory[ip].push(fingerprint);
-
         persist();
     } else {
-        // Existing User
-        // Check if we need to show warning (maybe simply because they are restricted?)
-        // Frontend can handle "only show once", so we can always return true if restricted.
-        if (fpData.role === 'restricted') {
-            showWarning = true;
-        }
-        // Update IP history if this FP is moving to a new IP? 
-        // Not strictly required for the "Restriction" logic (which is based on creation time), but good for tracking.
+        if (fpData.role === 'restricted') showWarning = true;
         if (!usage.ipHistory[ip]) usage.ipHistory[ip] = [];
         if (!usage.ipHistory[ip].includes(fingerprint)) {
             usage.ipHistory[ip].push(fingerprint);
@@ -136,25 +119,38 @@ export function checkLimit(fingerprint: string, ip: string, amount: number = 1):
     }
 
     const max = fpData.role === 'restricted' ? Limits.RESTRICTED : Limits.NORMAL;
-    
-    // Always allow 0-cost (free) models regardless of past usage
+
     if (amount === 0) {
-        return {
-            allowed: true,
-            remaining: Math.max(0, max - fpData.count),
-            role: fpData.role,
-            showWarning
-        };
+        return { allowed: true, remaining: Math.max(0, max - fpData.count), role: fpData.role, showWarning };
     }
 
     const allowed = fpData.count + amount <= max;
+    return { allowed, remaining: Math.max(0, max - fpData.count), role: fpData.role, showWarning };
+}
 
-    return {
-        allowed,
-        remaining: Math.max(0, max - fpData.count),
-        role: fpData.role,
-        showWarning
-    };
+/**
+ * Atomically reserve usage: increment first, then check if over limit.
+ * If over limit, rollback the increment and return false.
+ * This prevents race conditions where concurrent requests all pass the limit check.
+ */
+export function reserveUsage(fingerprint: string, amount: number = 1): { allowed: boolean; remaining: number } {
+    ensureLoaded();
+    const fpData = usage.fingerprints[fingerprint];
+    if (!fpData) return { allowed: false, remaining: 0 };
+
+    const max = fpData.role === 'restricted' ? Limits.RESTRICTED : Limits.NORMAL;
+
+    // Optimistic increment
+    fpData.count += amount;
+
+    if (fpData.count > max) {
+        // Over limit - rollback
+        fpData.count -= amount;
+        return { allowed: false, remaining: Math.max(0, max - fpData.count) };
+    }
+
+    persist();
+    return { allowed: true, remaining: Math.max(0, max - fpData.count) };
 }
 
 export function incrementUsage(fingerprint: string, amount: number = 1): number {
@@ -168,6 +164,15 @@ export function incrementUsage(fingerprint: string, amount: number = 1): number 
     return 0;
 }
 
+export function rollbackUsage(fingerprint: string, amount: number = 1): void {
+    ensureLoaded();
+    const fpData = usage.fingerprints[fingerprint];
+    if (fpData) {
+        fpData.count = Math.max(0, fpData.count - amount);
+        persist();
+    }
+}
+
 export function getUsage(fingerprint: string): number {
     ensureLoaded();
     return usage.fingerprints[fingerprint]?.count || 0;
@@ -175,6 +180,8 @@ export function getUsage(fingerprint: string): number {
 
 export const UsageService = {
     checkLimit,
+    reserve: reserveUsage,
     increment: incrementUsage,
+    rollback: rollbackUsage,
     get: getUsage
 };

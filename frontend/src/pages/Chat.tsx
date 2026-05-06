@@ -9,6 +9,7 @@ import Sidebar from "../components/Sidebar";
 import MessageList from "../components/MessageList";
 import InputBox from "../components/InputBox";
 import ModelSelector from "../components/ModelSelector";
+import SEO from "../components/SEO";
 
 export default function Chat() {
   const { chats, currentChatId, createChat, addMessage, updateMessage, setCurrentChat, deleteMessagesAfter } = useChatStore();
@@ -28,8 +29,14 @@ export default function Chat() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Cleanup: abort any in-flight request on unmount
+  useEffect(() => {
+    return () => { abortRef.current?.abort(); };
+  }, []);
   return (
     <div className="flex h-full">
+      <SEO title="AI 对话" description="与多种AI模型免费对话，支持 Gemini、ChatGPT 等主流大模型，一键切换，流式响应。" />
       <Sidebar onOpenActivation={() => setShowActivation(true)} />
       <div className="flex-1 flex flex-col">
         <div className="h-14 border-b border-gray-200 dark:border-dark-border flex items-center px-4 bg-white dark:bg-dark-card">
@@ -65,9 +72,10 @@ export default function Chat() {
               const chatId = current.id;
               const freshCurrent = useChatStore.getState().chats.find(c => c.id === chatId);
               const modelId = freshCurrent?.modelId || "gemini-2.5-flash"; // Fallback safety
-              const userMsgId = `msg_${Date.now()}`;
-              addMessage(chatId, { id: userMsgId, role: "user", content, timestamp: Date.now(), modelId });
-              const asstId = `msg_${Date.now()}_asst`;
+              const ts = Date.now();
+              const userMsgId = `msg_${ts}_user`;
+              addMessage(chatId, { id: userMsgId, role: "user", content, timestamp: ts, modelId });
+              const asstId = `msg_${ts}_asst`;
               addMessage(chatId, { id: asstId, role: "assistant", content: "AI正在思考🤔", timestamp: Date.now(), modelId });
               const controller = new AbortController();
               abortRef.current = controller;
@@ -76,7 +84,7 @@ export default function Chat() {
               try {
                 // Refresh activation key balance asynchronously (non-blocking)
                 const storedKeys = getStoredKeys();
-                const lastKey = storedKeys.pop();
+                const lastKey = storedKeys.length > 0 ? storedKeys[storedKeys.length - 1] : undefined;
                 if (lastKey) {
                   // Run in background without await to prevent blocking the main chat flow
                   (async () => {

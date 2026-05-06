@@ -154,7 +154,7 @@ router.post("/afdian/webhook", (req, res) => {
     } catch (e: any) {
         console.error("[Afdian Webhook] Error:", e);
         // 即使出错也返回200，避免爱发电重试
-        res.json({ ec: 200, em: e.message });
+        res.json({ ec: 200, em: "internal error" });
     }
 });
 
